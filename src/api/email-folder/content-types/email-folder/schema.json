@@ -1,0 +1,26 @@
+{
+  "kind": "collectionType",
+  "collectionName": "email_folders",
+  "info": {
+    "singularName": "email-folder",
+    "pluralName": "email-folders",
+    "displayName": "email-folder"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string"
+    },
+    "color": {
+      "type": "string"
+    },
+    "users_permissions_user": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "plugin::users-permissions.user"
+    }
+  }
+}

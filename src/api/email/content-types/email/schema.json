@@ -1,0 +1,66 @@
+{
+  "kind": "collectionType",
+  "collectionName": "emails",
+  "info": {
+    "singularName": "email",
+    "pluralName": "emails",
+    "displayName": "Email"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "from": {
+      "type": "email"
+    },
+    "to": {
+      "type": "json"
+    },
+    "cc": {
+      "type": "json"
+    },
+    "bcc": {
+      "type": "json"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "body": {
+      "type": "string"
+    },
+    "attachments": {
+      "type": "json"
+    },
+    "folder": {
+      "type": "enumeration",
+      "enum": [
+        "inbox",
+        "sent",
+        "draft",
+        "trash",
+        "spam"
+      ]
+    },
+    "isRead": {
+      "type": "boolean"
+    },
+    "isStarred": {
+      "type": "boolean"
+    },
+    "isImportant": {
+      "type": "boolean"
+    },
+    "threadId": {
+      "type": "string"
+    },
+    "sentAt": {
+      "type": "datetime"
+    },
+    "user": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "plugin::users-permissions.user"
+    }
+  }
+}
