@@ -34,8 +34,7 @@ const GmailClone = ({ user }: GmailCloneProps) => {
   const [showEmailList, setShowEmailList] = useState(true);
   const [showDiagnostic, setShowDiagnostic] = useState(false);
 
-  // Pour les messages suivis, on récupère tous les emails depuis inbox
-  // mais on les filtrera côté client
+  // Pour les messages suivis, on utilise le dossier inbox par défaut
   const folderForHook = currentFolder === "starred" ? "inbox" : currentFolder;
 
   const {
@@ -54,8 +53,10 @@ const GmailClone = ({ user }: GmailCloneProps) => {
 
     switch (currentFolder) {
       case "starred":
-        // Pour les messages suivis : tous les emails étoilés, peu importe leur dossier
-        filteredEmails = rawEmails.filter((email) => email.isStarred);
+        // Pour les messages suivis : seulement les emails étoilés de la boîte de réception
+        filteredEmails = rawEmails.filter(
+          (email) => email.isStarred === true && email.folder === "inbox",
+        );
         break;
       case "inbox":
         filteredEmails = rawEmails.filter((email) => email.folder === "inbox");
