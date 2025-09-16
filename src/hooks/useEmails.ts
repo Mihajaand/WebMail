@@ -1,4 +1,4 @@
-// hooks/useEmails.ts - Version corrigée pour supporter les messages suivis
+// hooks/useEmails.ts - Version corrigée pour synchronisation isStarred
 import { useState, useEffect, useCallback } from "react";
 import { emailService } from "../services/emailService";
 import type { Email } from "../types/email";
@@ -234,8 +234,7 @@ export const useEmails = (folder: string = "inbox") => {
         const newStarred = !email.isStarred;
         console.log(`⭐ Toggling star for email ${id}: ${newStarred}`);
 
-        await emailService.toggleStar(id, newStarred);
-
+        // Mise à jour optimiste de l'interface
         setState((prev) => ({
           ...prev,
           emails: prev.emails.map((email) =>
@@ -243,14 +242,34 @@ export const useEmails = (folder: string = "inbox") => {
           ),
         }));
 
-        // Si on est dans le dossier starred et qu'on retire l'étoile,
-        // on doit rafraîchir pour que l'email disparaisse de la vue
-        if (folder === "starred" && !newStarred) {
-          console.log("🔄 Refreshing starred folder after unstar");
-          setTimeout(() => fetchEmails(1, true), 500);
+        try {
+          // Mise à jour du backend
+          await emailService.toggleStar(id, newStarred);
+          console.log(`✅ Star toggled successfully in backend for ${id}`);
+
+          // Si on retire l'étoile d'un email dans le dossier starred,
+          // on le retire immédiatement de la vue
+          if (folder === "starred" && !newStarred) {
+            console.log("🔄 Removing unstarred email from starred view");
+            setState((prev) => ({
+              ...prev,
+              emails: prev.emails.filter((email) => email.id !== id),
+            }));
+          }
+        } catch (backendError) {
+          console.error("❌ Error updating star in backend:", backendError);
+
+          // En cas d'erreur backend, revenir à l'état précédent
+          setState((prev) => ({
+            ...prev,
+            emails: prev.emails.map((email) =>
+              email.id === id ? { ...email, isStarred: !newStarred } : email,
+            ),
+            error: "Erreur lors de la mise à jour de l'étoile",
+          }));
         }
       } catch (error) {
-        console.error("❌ Error toggling star:", error);
+        console.error("❌ Error in toggleStar:", error);
         setState((prev) => ({
           ...prev,
           error:
@@ -260,7 +279,7 @@ export const useEmails = (folder: string = "inbox") => {
         }));
       }
     },
-    [state.emails, folder, fetchEmails],
+    [state.emails, folder],
   );
 
   const moveToFolder = useCallback(async (id: string, targetFolder: string) => {

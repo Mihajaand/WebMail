@@ -1,4 +1,4 @@
-// services/emailService.ts - Version corrigée avec types TypeScript fixes
+// services/emailService.ts - Version améliorée pour toggleStar
 import type { CustomFolder, Email } from "../types/email";
 
 const API_BASE = import.meta.env.VITE_STRAPI_URL || "http://localhost:1337/api";
@@ -342,24 +342,65 @@ class EmailService {
   async toggleStar(id: string, isStarred: boolean): Promise<void> {
     console.log(`⭐ Toggle star email ${id}: ${isStarred}`);
 
-    try {
-      await this.fetchApi(`/emails/${id}`, {
-        method: "PUT",
-        body: JSON.stringify({ data: { isStarred } }),
-      });
-    } catch (error) {
-      console.warn(
-        `❌ Échec toggle star avec ID ${id}, tentative avec documentId...`,
-      );
-
-      try {
-        const correctId = await this.getEmailIdentifier(id);
-        await this.fetchApi(`/emails/${correctId}`, {
+    // Stratégies multiples pour la mise à jour
+    const updateStrategies = [
+      // Stratégie 1: ID direct
+      async () => {
+        console.log(`🧪 Stratégie 1: ID direct ${id}`);
+        return this.fetchApi(`/emails/${id}`, {
           method: "PUT",
           body: JSON.stringify({ data: { isStarred } }),
         });
-      } catch (retryError) {
-        console.error(`❌ Échec final pour toggleStar:`, retryError);
+      },
+      // Stratégie 2: Recherche par ID puis mise à jour
+      async () => {
+        console.log(`🧪 Stratégie 2: Recherche puis mise à jour`);
+        const emailResponse = await this.fetchApi<ApiResponse<any>>(
+          `/emails?filters[id][$eq]=${id}&populate=*`,
+        );
+
+        if (
+          Array.isArray(emailResponse.data) &&
+          emailResponse.data.length > 0
+        ) {
+          const email = emailResponse.data[0];
+          const updateId = email.documentId || email.id;
+          console.log(`📌 Trouvé email, mise à jour avec ID: ${updateId}`);
+
+          return this.fetchApi(`/emails/${updateId}`, {
+            method: "PUT",
+            body: JSON.stringify({ data: { isStarred } }),
+          });
+        }
+        throw new Error("Email non trouvé");
+      },
+      // Stratégie 3: Avec documentId si disponible
+      async () => {
+        console.log(`🧪 Stratégie 3: DocumentId lookup`);
+        const correctId = await this.getEmailIdentifier(id);
+        return this.fetchApi(`/emails/${correctId}`, {
+          method: "PUT",
+          body: JSON.stringify({ data: { isStarred } }),
+        });
+      },
+    ];
+
+    for (let i = 0; i < updateStrategies.length; i++) {
+      try {
+        const result = await updateStrategies[i]();
+        console.log(`✅ Stratégie ${i + 1} réussie pour toggleStar:`, result);
+        return;
+      } catch (error) {
+        console.warn(`❌ Stratégie ${i + 1} échouée:`, error);
+
+        // Si c'est la dernière stratégie, on lance l'erreur
+        if (i === updateStrategies.length - 1) {
+          console.error(`❌ Toutes les stratégies ont échoué pour toggleStar`);
+          throw error;
+        }
+
+        // Sinon on continue avec la stratégie suivante
+        continue;
       }
     }
   }
@@ -475,6 +516,74 @@ class EmailService {
       console.log("✅ Email de test créé:", result);
     } catch (error) {
       console.error("❌ Erreur création email de test:", error);
+    }
+  }
+
+  // Nouvelle méthode pour vérifier l'état d'un email spécifique
+  async getEmailById(id: string): Promise<Email | null> {
+    try {
+      console.log(`🔍 Récupération email par ID: ${id}`);
+
+      // Essayer plusieurs approches pour récupérer l'email
+      const approaches = [
+        `/emails/${id}?populate=*`,
+        `/emails?filters[id][$eq]=${id}&populate=*`,
+      ];
+
+      for (const approach of approaches) {
+        try {
+          const response = await this.fetchApi<any>(approach);
+
+          if (response.data) {
+            // Si c'est un objet direct
+            if (!Array.isArray(response.data)) {
+              const email = response.data.attributes
+                ? { id: String(response.data.id), ...response.data.attributes }
+                : { id: String(response.data.id), ...response.data };
+              console.log(`✅ Email trouvé (direct):`, email);
+              return email as Email;
+            }
+            // Si c'est un tableau
+            else if (response.data.length > 0) {
+              const item = response.data[0];
+              const email = item.attributes
+                ? { id: String(item.id), ...item.attributes }
+                : { id: String(item.id), ...item };
+              console.log(`✅ Email trouvé (array):`, email);
+              return email as Email;
+            }
+          }
+        } catch (error) {
+          console.warn(`❌ Approche ${approach} échouée:`, error);
+          continue;
+        }
+      }
+
+      console.log(`❌ Email ${id} non trouvé`);
+      return null;
+    } catch (error) {
+      console.error(
+        `❌ Erreur lors de la récupération de l'email ${id}:`,
+        error,
+      );
+      return null;
+    }
+  }
+
+  // Méthode pour synchroniser l'état starred d'un email
+  async syncEmailStarStatus(id: string): Promise<boolean | null> {
+    try {
+      const email = await this.getEmailById(id);
+      if (email) {
+        console.log(
+          `🔄 État isStarred synchronisé pour ${id}: ${email.isStarred}`,
+        );
+        return email.isStarred;
+      }
+      return null;
+    } catch (error) {
+      console.error(`❌ Erreur sync star status pour ${id}:`, error);
+      return null;
     }
   }
 }

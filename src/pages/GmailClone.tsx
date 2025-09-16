@@ -778,9 +778,6 @@ const GmailClone = ({ user }: GmailCloneProps) => {
 
       {/* Compose Modal */}
       {showCompose && <ComposeModal />}
-
-      {/* Diagnostic Modal */}
-      <EmailDiagnostic />
     </div>
   );
 };
