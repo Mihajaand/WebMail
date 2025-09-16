@@ -27,12 +27,16 @@ class EmailService {
   }
 
   // Récupérer les emails par dossier
+  // Récupérer les emails par dossier
   async getEmails(
     folder: string = "inbox",
     page: number = 1,
   ): Promise<ApiResponse<Email[]>> {
+    // ✅ CORRECTION : Ajouter le filtre par utilisateur
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+
     return this.fetchApi<ApiResponse<Email[]>>(
-      `/emails?filters[folder][$eq]=${folder}&sort=sentAt:desc&pagination[page]=${page}&pagination[pageSize]=20&populate=*`,
+      `/emails?filters[folder][$eq]=${folder}&filters[user][id][$eq]=${user.id}&sort=sentAt:desc&pagination[page]=${page}&pagination[pageSize]=20&populate=*`,
     );
   }
 

@@ -30,11 +30,38 @@ export const useEmails = (folder: string = "inbox") => {
 
         const response = await emailService.getEmails(folder, page);
 
+        console.log("=== DEBUG API RESPONSE ===");
+        console.log("Response complète:", response);
+        console.log("Response.data:", response.data);
+        if (response.data && response.data[0]) {
+          console.log("Premier item brut:", response.data[0]);
+          console.log(
+            "Attributes du premier item:",
+            response.data[0].attributes,
+          );
+        }
+
         // 🔹 Convertir les objets Strapi { id, attributes } en Email
-        const emails: Email[] = response.data.map((item: any) => ({
-          id: String(item.id),
-          ...item.attributes,
-        }));
+        // CORRECTION TEMPORAIRE : gérer différentes structures d'API
+        const emails: Email[] = response.data.map((item: any) => {
+          console.log("Processing item:", item);
+          // Si c'est la structure Strapi classique
+          if (item.attributes) {
+            console.log("Using Strapi structure, attributes:", item.attributes);
+            return {
+              id: String(item.id),
+              ...item.attributes,
+            };
+          }
+          // Si c'est une structure directe
+          else {
+            console.log("Using direct structure");
+            return {
+              id: String(item.id || item._id),
+              ...item,
+            };
+          }
+        });
 
         setState((prev) => ({
           ...prev,
@@ -60,9 +87,11 @@ export const useEmails = (folder: string = "inbox") => {
     async (emailData: ComposeEmailData): Promise<boolean> => {
       try {
         await emailService.sendEmail(emailData);
-        if (folder === "sent") {
-          fetchEmails(1, true);
-        }
+
+        // ✅ CORRECTION : Toujours recharger les emails du dossier actuel
+        // Peu importe le dossier où on se trouve
+        fetchEmails(1, true);
+
         return true;
       } catch (error) {
         setState((prev) => ({
@@ -73,7 +102,7 @@ export const useEmails = (folder: string = "inbox") => {
         return false;
       }
     },
-    [folder, fetchEmails],
+    [fetchEmails], // ✅ Retirer 'folder' des dépendances car on recharge toujours
   );
 
   const markAsRead = useCallback(async (id: string, isRead: boolean) => {

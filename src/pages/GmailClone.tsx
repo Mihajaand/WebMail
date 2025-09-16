@@ -81,6 +81,30 @@ const GmailClone = ({ user }: GmailCloneProps) => {
         email.body.toLowerCase().includes(searchQuery.toLowerCase()),
     );
 
+  // DEBUG COMPLET - Maintenant après la définition de currentEmails
+  console.log("=== DEBUG EMAILS ===");
+  console.log("Dossier actuel:", currentFolder);
+  console.log("Tous les emails récupérés:", emails);
+  console.log("Nombre total emails:", emails.length);
+
+  // DEBUG DÉTAILLÉ : Voir la structure des emails
+  if (emails.length > 0) {
+    console.log("Premier email:", emails[0]);
+    console.log("Propriétés du premier email:", Object.keys(emails[0]));
+    emails.forEach((email, index) => {
+      console.log(
+        `Email ${index + 1} - ID: ${email.id}, folder: "${email.folder}"`,
+      );
+    });
+  }
+
+  console.log(
+    'Emails avec folder "sent":',
+    emails.filter((e) => e.folder === "sent"),
+  );
+  console.log("Emails filtrés pour affichage:", currentEmails);
+  console.log("Loading:", loading);
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -125,16 +149,24 @@ const GmailClone = ({ user }: GmailCloneProps) => {
         to: to.split(",").map((e) => e.trim()),
         subject,
         body,
-        folder: "sent", // <- ajouter ce champ
-        isRead: true, // déjà lu par toi
+        folder: "sent",
+        isRead: true,
         sentAt: new Date().toISOString(),
+        // Ajouter l'expéditeur depuis les données utilisateur
+        from: user.email || user.username,
       };
+
       const success = await sendEmail(newEmailData);
       if (success) {
         setShowCompose(false);
         setTo("");
         setSubject("");
         setBody("");
+
+        // CORRECTION 1: Basculer automatiquement vers le dossier "sent" après envoi
+        setCurrentFolder("sent");
+        setSelectedEmail(null);
+        setShowEmailList(true);
       }
     };
 
@@ -351,7 +383,7 @@ const GmailClone = ({ user }: GmailCloneProps) => {
               localStorage.removeItem("user");
               window.location.reload();
             }}
-            className="ml-2 rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700"
+            className="mt-2 rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700"
           >
             Déconnexion
           </button>
