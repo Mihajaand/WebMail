@@ -27,7 +27,7 @@ export interface Attachment {
 export type FolderType =
   | "inbox"
   | "sent"
-  | "drafts"
+  | "draft"
   | "trash"
   | "spam"
   | "custom";

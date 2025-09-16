@@ -17,6 +17,10 @@ interface ComposeEmailData {
   body: string;
 }
 
+interface DraftData extends ComposeEmailData {
+  id?: string;
+}
+
 interface GmailCloneProps {
   user: {
     username: string;
@@ -33,15 +37,23 @@ const GmailClone = ({ user }: GmailCloneProps) => {
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
   const [showEmailList, setShowEmailList] = useState(true);
   const [showDiagnostic, setShowDiagnostic] = useState(false);
+  const [draftToEdit, setDraftToEdit] = useState<DraftData | null>(null);
 
   // Pour les messages suivis, on utilise le dossier inbox par défaut
-  const folderForHook = currentFolder === "starred" ? "inbox" : currentFolder;
+  // Pour les brouillons, on mappe "drafts" vers "draft" pour l'API
+  const folderForHook =
+    currentFolder === "starred"
+      ? "inbox"
+      : currentFolder === "drafts"
+        ? "draft"
+        : currentFolder;
 
   const {
     emails: rawEmails,
     loading,
     error,
     sendEmail,
+    saveDraft,
     toggleStar,
     moveToFolder,
     refresh,
@@ -65,7 +77,7 @@ const GmailClone = ({ user }: GmailCloneProps) => {
         filteredEmails = rawEmails.filter((email) => email.folder === "sent");
         break;
       case "drafts":
-        filteredEmails = rawEmails.filter((email) => email.folder === "drafts");
+        filteredEmails = rawEmails.filter((email) => email.folder === "draft");
         break;
       case "trash":
         filteredEmails = rawEmails.filter((email) => email.folder === "trash");
@@ -103,7 +115,7 @@ const GmailClone = ({ user }: GmailCloneProps) => {
       case "sent":
         return rawEmails.filter((e) => e.folder === "sent").length;
       case "drafts":
-        return rawEmails.filter((e) => e.folder === "drafts").length;
+        return rawEmails.filter((e) => e.folder === "draft").length;
       case "trash":
         return rawEmails.filter((e) => e.folder === "trash").length;
       default:
@@ -149,10 +161,32 @@ const GmailClone = ({ user }: GmailCloneProps) => {
   ): Promise<boolean> => {
     console.log("📤 Composing email:", emailData);
 
+    // Si c'est l'envoi d'un brouillon, noter l'ID pour suppression après envoi
+    const draftIdToDelete = draftToEdit?.id;
+
     const success = await sendEmail(emailData);
     if (success) {
       console.log("✅ Email sent successfully!");
+
+      // Si c'était un brouillon, le supprimer après envoi réussi
+      if (draftIdToDelete) {
+        try {
+          console.log(
+            `🗑️ Suppression du brouillon après envoi: ${draftIdToDelete}`,
+          );
+          await moveToFolder(draftIdToDelete, "trash");
+          console.log("✅ Brouillon supprimé après envoi");
+        } catch (error) {
+          console.error(
+            "❌ Erreur lors de la suppression du brouillon:",
+            error,
+          );
+          // L'erreur n'empêche pas l'envoi réussi
+        }
+      }
+
       setShowCompose(false);
+      setDraftToEdit(null); // Reset draft data
 
       setCurrentFolder("sent");
       setSelectedEmail(null);
@@ -160,6 +194,26 @@ const GmailClone = ({ user }: GmailCloneProps) => {
       return true;
     } else {
       console.error("❌ Failed to send email");
+      return false;
+    }
+  };
+
+  const handleSaveDraft = async (draftData: DraftData): Promise<boolean> => {
+    console.log("💾 Saving draft:", draftData);
+
+    const success = await saveDraft(draftData);
+    if (success) {
+      console.log("✅ Draft saved successfully!");
+      setShowCompose(false);
+      setDraftToEdit(null); // Reset draft data
+
+      // Rediriger vers les brouillons pour voir le brouillon sauvegardé
+      setCurrentFolder("drafts");
+      setSelectedEmail(null);
+      setShowEmailList(true);
+      return true;
+    } else {
+      console.error("❌ Failed to save draft");
       return false;
     }
   };
@@ -173,8 +227,37 @@ const GmailClone = ({ user }: GmailCloneProps) => {
 
   const handleEmailSelect = (email: Email) => {
     console.log("📖 Opening email:", email);
-    setSelectedEmail(email);
-    setShowEmailList(false);
+
+    // Si c'est un brouillon, l'ouvrir en mode édition
+    if (email.folder === "draft") {
+      console.log("📝 Opening draft for editing:", email);
+
+      const draftData: DraftData = {
+        id: email.id,
+        to: email.to || [],
+        cc: email.cc || [],
+        bcc: email.bcc || [],
+        subject: email.subject || "",
+        body: email.body || "",
+      };
+
+      setDraftToEdit(draftData);
+      setShowCompose(true);
+    } else {
+      // Email normal, l'ouvrir en lecture
+      setSelectedEmail(email);
+      setShowEmailList(false);
+    }
+  };
+
+  const handleNewCompose = () => {
+    setDraftToEdit(null); // Reset draft data pour un nouveau message
+    setShowCompose(true);
+  };
+
+  const handleCloseCompose = () => {
+    setShowCompose(false);
+    setDraftToEdit(null); // Reset draft data
   };
 
   return (
@@ -187,7 +270,7 @@ const GmailClone = ({ user }: GmailCloneProps) => {
         getEmailCount={getEmailCount}
         showEmailList={showEmailList}
         onFolderChange={handleFolderChange}
-        onShowCompose={() => setShowCompose(true)}
+        onShowCompose={handleNewCompose}
         onShowDiagnostic={() => setShowDiagnostic(true)}
       />
 
@@ -254,13 +337,22 @@ const GmailClone = ({ user }: GmailCloneProps) => {
           <div className="text-center text-gray-500">
             <Mail className="mx-auto mb-4 h-16 w-16 text-gray-300" />
             <h3 className="mb-2 text-lg font-medium">Webmail ENI</h3>
-            <p>Sélectionnez un email pour le lire</p>
+            <p>
+              {currentFolder === "drafts"
+                ? "Sélectionnez un brouillon pour le modifier"
+                : "Sélectionnez un email pour le lire"}
+            </p>
+            {currentFolder === "drafts" && (
+              <p className="mt-2 text-sm text-gray-400">
+                Les brouillons s'ouvrent en mode édition
+              </p>
+            )}
             <div className="mt-4 text-xs text-gray-400">
               <p>
                 👤 Utilisateur: {user.username} ({user.email})
               </p>
-              <p>📁 Dossier Active: {currentFolder}</p>
-              <p>📊 {rawEmails.length} emails au totales</p>
+              <p>📁 Dossier Actif: {currentFolder}</p>
+              <p>📊 {rawEmails.length} emails au total</p>
             </div>
           </div>
         </div>
@@ -269,8 +361,10 @@ const GmailClone = ({ user }: GmailCloneProps) => {
       {/* Compose Modal */}
       {showCompose && (
         <ComposeModal
-          onClose={() => setShowCompose(false)}
+          onClose={handleCloseCompose}
           onSend={handleSendEmail}
+          onSaveDraft={handleSaveDraft}
+          draftData={draftToEdit}
         />
       )}
 

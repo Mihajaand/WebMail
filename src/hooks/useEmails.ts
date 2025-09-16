@@ -1,4 +1,4 @@
-// hooks/useEmails.ts - Version corrigée pour synchronisation isStarred
+// hooks/useEmails.ts - Version corrigée avec gestion des brouillons
 import { useState, useEffect, useCallback } from "react";
 import { emailService } from "../services/emailService";
 import type { Email } from "../types/email";
@@ -10,6 +10,10 @@ interface ComposeEmailData {
   bcc?: string[];
   subject: string;
   body: string;
+}
+
+interface DraftData extends ComposeEmailData {
+  id?: string;
 }
 
 interface UseEmailsState {
@@ -45,7 +49,7 @@ export const useEmails = (folder: string = "inbox") => {
           console.log("⭐ Fetching starred emails from all folders...");
 
           // Récupérer les emails de tous les dossiers principaux
-          const folders = ["inbox", "sent", "drafts"];
+          const folders = ["inbox", "sent", "draft"];
 
           for (const folderName of folders) {
             try {
@@ -193,6 +197,33 @@ export const useEmails = (folder: string = "inbox") => {
           ...prev,
           error:
             error instanceof Error ? error.message : "Erreur lors de l'envoi",
+        }));
+        return false;
+      }
+    },
+    [fetchEmails],
+  );
+
+  const saveDraft = useCallback(
+    async (draftData: DraftData): Promise<boolean> => {
+      try {
+        console.log("💾 Saving draft:", draftData);
+
+        const result = await emailService.saveDraft(draftData);
+        console.log("✅ Draft saved successfully:", result);
+
+        // Rafraîchir les emails pour refléter les changements
+        await fetchEmails(1, true);
+
+        return true;
+      } catch (error) {
+        console.error("❌ Error saving draft:", error);
+        setState((prev) => ({
+          ...prev,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Erreur lors de la sauvegarde du brouillon",
         }));
         return false;
       }
@@ -352,6 +383,7 @@ export const useEmails = (folder: string = "inbox") => {
   return {
     ...state,
     sendEmail,
+    saveDraft,
     toggleStar,
     moveToFolder,
     deleteEmail,
