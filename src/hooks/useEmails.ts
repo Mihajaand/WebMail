@@ -260,25 +260,45 @@ export const useEmails = (folder: string = "inbox") => {
     [state.emails, folder],
   );
 
-  const moveToFolder = useCallback(async (id: string, targetFolder: string) => {
-    try {
-      console.log(`📁 Moving email ${id} to folder: ${targetFolder}`);
-      await emailService.moveToFolder(id, targetFolder);
+  const moveToFolder = useCallback(
+    async (id: string, targetFolder: string) => {
+      try {
+        console.log(`📁 Moving email ${id} to folder: ${targetFolder}`);
 
-      // Retirer l'email de la liste actuelle
-      setState((prev) => ({
-        ...prev,
-        emails: prev.emails.filter((email) => email.id !== id),
-      }));
-    } catch (error) {
-      console.error("❌ Error moving email:", error);
-      setState((prev) => ({
-        ...prev,
-        error:
-          error instanceof Error ? error.message : "Erreur lors du déplacement",
-      }));
-    }
-  }, []);
+        // Mise à jour dans le backend d'abord
+        await emailService.moveToFolder(id, targetFolder);
+        console.log(`✅ Email ${id} moved to ${targetFolder} successfully`);
+
+        // Attendre que l'opération soit terminée avant de mettre à jour l'interface
+        const success = await emailService.getEmails(targetFolder, 1);
+        if (success) {
+          // Si c'est un déplacement vers la corbeille, retirer l'email de la liste actuelle
+          if (targetFolder === "trash") {
+            setState((prev) => ({
+              ...prev,
+              emails: prev.emails.filter((email) => email.id !== id),
+            }));
+          }
+
+          // Rafraîchir la vue actuelle
+          await fetchEmails(1, true);
+        } else {
+          throw new Error("Erreur de synchronisation après déplacement");
+        }
+      } catch (error) {
+        console.error("❌ Error moving email:", error);
+        setState((prev) => ({
+          ...prev,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Erreur lors du déplacement",
+        }));
+        throw error; // Propager l'erreur pour la gestion dans le composant
+      }
+    },
+    [folder, fetchEmails],
+  );
 
   const deleteEmail = useCallback(async (id: string) => {
     try {

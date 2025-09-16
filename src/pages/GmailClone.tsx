@@ -216,7 +216,38 @@ const GmailClone = ({ user }: GmailCloneProps) => {
           email={selectedEmail}
           onClose={() => setSelectedEmail(null)}
           onToggleStar={(id) => toggleStar(String(id))}
-          onMoveToFolder={(id, folder) => moveToFolder(String(id), folder)}
+          onMoveToFolder={async (id, folder) => {
+            try {
+              console.log(
+                `🗑️ Tentative de déplacement de l'email ${id} vers ${folder}...`,
+              );
+              await moveToFolder(String(id), folder);
+              console.log("✅ Déplacement réussi");
+
+              if (folder === "trash") {
+                console.log("📤 Email déplacé vers la corbeille");
+                // Mettre à jour l'interface après confirmation du backend
+                setSelectedEmail(null);
+                setShowEmailList(true);
+
+                // Forcer un rafraîchissement pour mettre à jour les listes d'emails
+                if (currentFolder === "trash") {
+                  // Si on est dans la corbeille, recharger la corbeille
+                  setCurrentFolder("trash");
+                  refresh();
+                } else {
+                  // Sinon, juste rafraîchir la vue actuelle
+                  refresh();
+                }
+              }
+            } catch (error) {
+              console.error(
+                "❌ Erreur lors du déplacement vers la corbeille:",
+                error,
+              );
+              // Afficher une erreur à l'utilisateur si nécessaire
+            }
+          }}
         />
       ) : (
         <div className="flex flex-1 items-center justify-center bg-gray-50">
@@ -228,8 +259,8 @@ const GmailClone = ({ user }: GmailCloneProps) => {
               <p>
                 👤 Utilisateur: {user.username} ({user.email})
               </p>
-              <p>📁 Dossier: {currentFolder}</p>
-              <p>📊 {rawEmails.length} emails chargés</p>
+              <p>📁 Dossier Active: {currentFolder}</p>
+              <p>📊 {rawEmails.length} emails au totales</p>
             </div>
           </div>
         </div>

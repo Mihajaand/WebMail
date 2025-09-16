@@ -382,25 +382,69 @@ class EmailService {
   async moveToFolder(id: string, folder: string): Promise<void> {
     console.log(`📁 Déplacement email ${id} vers: ${folder}`);
 
-    try {
-      await this.fetchApi(`/emails/${id}`, {
-        method: "PUT",
-        body: JSON.stringify({ data: { folder } }),
-      });
-    } catch (error) {
-      console.warn(
-        `❌ Échec moveToFolder avec ID ${id}, tentative avec documentId...`,
-      );
-
-      try {
-        const correctId = await this.getEmailIdentifier(id);
-        await this.fetchApi(`/emails/${correctId}`, {
+    const updateStrategies = [
+      // Stratégie 1: ID direct
+      async () => {
+        console.log(`🧪 Stratégie 1: ID direct ${id}`);
+        return this.fetchApi(`/emails/${id}`, {
           method: "PUT",
           body: JSON.stringify({ data: { folder } }),
         });
-      } catch (retryError) {
-        console.error(`❌ Échec final pour moveToFolder:`, retryError);
-        throw retryError;
+      },
+      // Stratégie 2: Recherche par ID puis mise à jour
+      async () => {
+        console.log(`🧪 Stratégie 2: Recherche puis mise à jour`);
+        const emailResponse = await this.fetchApi<ApiResponse<any>>(
+          `/emails?filters[id][$eq]=${id}&populate=*`,
+        );
+
+        if (
+          Array.isArray(emailResponse.data) &&
+          emailResponse.data.length > 0
+        ) {
+          const email = emailResponse.data[0];
+          const updateId = email.documentId || email.id;
+          console.log(`📌 Trouvé email, mise à jour avec ID: ${updateId}`);
+
+          return this.fetchApi(`/emails/${updateId}`, {
+            method: "PUT",
+            body: JSON.stringify({ data: { folder } }),
+          });
+        }
+        throw new Error("Email non trouvé");
+      },
+      // Stratégie 3: Avec documentId si disponible
+      async () => {
+        console.log(`🧪 Stratégie 3: DocumentId lookup`);
+        const correctId = await this.getEmailIdentifier(id);
+        return this.fetchApi(`/emails/${correctId}`, {
+          method: "PUT",
+          body: JSON.stringify({ data: { folder } }),
+        });
+      },
+    ];
+
+    for (let i = 0; i < updateStrategies.length; i++) {
+      try {
+        console.log(
+          `📝 Tentative de la stratégie ${i + 1} pour moveToFolder...`,
+        );
+        const result = await updateStrategies[i]();
+        console.log(`✅ Stratégie ${i + 1} réussie pour moveToFolder:`, result);
+        return;
+      } catch (error) {
+        console.warn(`❌ Stratégie ${i + 1} échouée:`, error);
+
+        // Si c'est la dernière stratégie, on lance l'erreur
+        if (i === updateStrategies.length - 1) {
+          console.error(
+            `❌ Toutes les stratégies ont échoué pour moveToFolder`,
+          );
+          throw error;
+        }
+
+        // Sinon on continue avec la stratégie suivante
+        continue;
       }
     }
   }

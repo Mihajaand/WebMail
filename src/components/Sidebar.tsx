@@ -9,7 +9,7 @@ import {
   Bug,
 } from "lucide-react";
 import type { Email } from "../types/email";
-
+import logoEni from "./../assets/logo/eni.jpg";
 interface SidebarProps {
   user: {
     username: string;
@@ -75,10 +75,15 @@ const Sidebar = ({
     <div
       className={`${showEmailList ? "hidden md:flex" : "flex"} w-64 flex-col border-r bg-white`}
     >
+      <img
+        src={logoEni}
+        alt="logo Eni"
+        className="mt-2 ml-[80px] aspect-square h-[100px] w-[100px]"
+      />
       <div className="p-4">
         <button
           onClick={onShowCompose}
-          className="flex w-full items-center justify-center space-x-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+          className="flex w-full cursor-pointer items-center justify-center space-x-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
         >
           <Plus className="h-4 w-4" />
           <span>Nouveau message</span>
@@ -119,11 +124,11 @@ const Sidebar = ({
             <div className="text-xs text-gray-600">{user.email}</div>
           </div>
           <button className="rounded p-1 hover:bg-gray-100">
-            <Settings className="h-4 w-4" />
+            <Settings className="h-4 w-4 cursor-pointer" />
           </button>
           <button
             onClick={onShowDiagnostic}
-            className="rounded p-1 hover:bg-gray-100"
+            className="cursor-pointer rounded p-1 hover:bg-gray-100"
             title="Diagnostic"
           >
             <Bug className="h-4 w-4" />
@@ -135,7 +140,7 @@ const Sidebar = ({
             localStorage.removeItem("jwt");
             window.location.reload();
           }}
-          className="mt-2 w-full rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700"
+          className="mt-2 w-full cursor-pointer rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700"
         >
           Déconnexion
         </button>
