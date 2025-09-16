@@ -1,6 +1,7 @@
 import GmailClone from "./GmailClone";
 
 interface User {
+  username: string;
   name: string;
   email: string;
   [key: string]: any;
