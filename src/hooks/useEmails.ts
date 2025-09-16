@@ -26,13 +26,16 @@ export const useEmails = (folder: string = "inbox") => {
   const fetchEmails = useCallback(
     async (page: number = 1, reset: boolean = true) => {
       try {
+        console.log(`📥 Fetching emails for folder: ${folder}, page: ${page}`);
         setState((prev) => ({ ...prev, loading: true, error: null }));
 
         const response = await emailService.getEmails(folder, page);
 
         console.log("=== DEBUG API RESPONSE ===");
+        console.log("Folder:", folder);
         console.log("Response complète:", response);
-        console.log("Response.data:", response.data);
+        console.log("Response.data length:", response.data?.length || 0);
+
         if (response.data && response.data[0]) {
           console.log("Premier item brut:", response.data[0]);
           console.log(
@@ -42,13 +45,15 @@ export const useEmails = (folder: string = "inbox") => {
         }
 
         // 🔹 Convertir les objets Strapi { id, attributes } en Email
-        // CORRECTION TEMPORAIRE : gérer différentes structures d'API
         const emails: Email[] = response.data.map((item: any) => {
-          console.log("Processing item:", item);
+          console.log("Processing item for folder", folder, ":", item);
+
+          let email: Email;
+
           // Si c'est la structure Strapi classique
           if (item.attributes) {
             console.log("Using Strapi structure, attributes:", item.attributes);
-            return {
+            email = {
               id: String(item.id),
               ...item.attributes,
             };
@@ -56,22 +61,35 @@ export const useEmails = (folder: string = "inbox") => {
           // Si c'est une structure directe
           else {
             console.log("Using direct structure");
-            return {
+            email = {
               id: String(item.id || item._id),
               ...item,
             };
           }
+
+          // ✅ VALIDATION : Vérifier que l'email a les bonnes propriétés
+          if (!email.from || !email.subject || !email.sentAt) {
+            console.warn("⚠️ Email incomplet:", email);
+          }
+
+          return email;
         });
+
+        console.log(
+          `✅ Processed ${emails.length} emails for folder ${folder}`,
+        );
+        console.log("Processed emails:", emails);
 
         setState((prev) => ({
           ...prev,
           emails: reset ? emails : [...prev.emails, ...emails],
-          totalCount: response.meta?.pagination?.total || 0,
+          totalCount: response.meta?.pagination?.total || emails.length,
           currentPage: page,
           hasMore: page < (response.meta?.pagination?.pageCount || 1),
           loading: false,
         }));
       } catch (error) {
+        console.error(`❌ Error fetching emails for folder ${folder}:`, error);
         setState((prev) => ({
           ...prev,
           error:
@@ -86,14 +104,19 @@ export const useEmails = (folder: string = "inbox") => {
   const sendEmail = useCallback(
     async (emailData: ComposeEmailData): Promise<boolean> => {
       try {
-        await emailService.sendEmail(emailData);
+        console.log("📤 Sending email:", emailData);
 
-        // ✅ CORRECTION : Toujours recharger les emails du dossier actuel
-        // Peu importe le dossier où on se trouve
-        fetchEmails(1, true);
+        const result = await emailService.sendEmail(emailData);
+        console.log("✅ Email sent successfully:", result);
+
+        // ✅ CORRECTION : Rafraîchir les emails pour refléter les changements
+        // Si on est dans le dossier "sent", on verra le nouvel email envoyé
+        // Si on est dans "inbox" et qu'on s'envoie un email, on le verra aussi
+        await fetchEmails(1, true);
 
         return true;
       } catch (error) {
+        console.error("❌ Error sending email:", error);
         setState((prev) => ({
           ...prev,
           error:
@@ -102,11 +125,12 @@ export const useEmails = (folder: string = "inbox") => {
         return false;
       }
     },
-    [fetchEmails], // ✅ Retirer 'folder' des dépendances car on recharge toujours
+    [fetchEmails],
   );
 
   const markAsRead = useCallback(async (id: string, isRead: boolean) => {
     try {
+      console.log(`📖 Marking email ${id} as read: ${isRead}`);
       await emailService.markAsRead(id, isRead);
       setState((prev) => ({
         ...prev,
@@ -115,6 +139,7 @@ export const useEmails = (folder: string = "inbox") => {
         ),
       }));
     } catch (error) {
+      console.error("❌ Error marking email as read:", error);
       setState((prev) => ({
         ...prev,
         error:
@@ -129,9 +154,14 @@ export const useEmails = (folder: string = "inbox") => {
     async (id: string) => {
       try {
         const email = state.emails.find((e) => e.id === id);
-        if (!email) return;
+        if (!email) {
+          console.warn(`⚠️ Email not found for starring: ${id}`);
+          return;
+        }
 
         const newStarred = !email.isStarred;
+        console.log(`⭐ Toggling star for email ${id}: ${newStarred}`);
+
         await emailService.toggleStar(id, newStarred);
 
         setState((prev) => ({
@@ -141,6 +171,7 @@ export const useEmails = (folder: string = "inbox") => {
           ),
         }));
       } catch (error) {
+        console.error("❌ Error toggling star:", error);
         setState((prev) => ({
           ...prev,
           error:
@@ -155,12 +186,16 @@ export const useEmails = (folder: string = "inbox") => {
 
   const moveToFolder = useCallback(async (id: string, targetFolder: string) => {
     try {
+      console.log(`📁 Moving email ${id} to folder: ${targetFolder}`);
       await emailService.moveToFolder(id, targetFolder);
+
+      // Retirer l'email de la liste actuelle
       setState((prev) => ({
         ...prev,
         emails: prev.emails.filter((email) => email.id !== id),
       }));
     } catch (error) {
+      console.error("❌ Error moving email:", error);
       setState((prev) => ({
         ...prev,
         error:
@@ -171,12 +206,14 @@ export const useEmails = (folder: string = "inbox") => {
 
   const deleteEmail = useCallback(async (id: string) => {
     try {
+      console.log(`🗑️ Deleting email: ${id}`);
       await emailService.deleteEmail(id);
       setState((prev) => ({
         ...prev,
         emails: prev.emails.filter((email) => email.id !== id),
       }));
     } catch (error) {
+      console.error("❌ Error deleting email:", error);
       setState((prev) => ({
         ...prev,
         error:
@@ -189,15 +226,30 @@ export const useEmails = (folder: string = "inbox") => {
 
   const loadMore = useCallback(() => {
     if (!state.loading && state.hasMore) {
+      console.log(`📄 Loading more emails, page: ${state.currentPage + 1}`);
       fetchEmails(state.currentPage + 1, false);
     }
   }, [fetchEmails, state.loading, state.hasMore, state.currentPage]);
 
   const refresh = useCallback(() => {
+    console.log(`🔄 Refreshing emails for folder: ${folder}`);
     fetchEmails(1, true);
-  }, [fetchEmails]);
+  }, [fetchEmails, folder]);
+
+  // ✅ NOUVEAU : Auto-refresh périodique pour la boîte de réception
+  useEffect(() => {
+    if (folder === "inbox") {
+      const interval = setInterval(() => {
+        console.log("🔄 Auto-refreshing inbox...");
+        fetchEmails(1, true);
+      }, 30000); // Refresh toutes les 30 secondes
+
+      return () => clearInterval(interval);
+    }
+  }, [folder, fetchEmails]);
 
   useEffect(() => {
+    console.log(`🔄 Folder changed to: ${folder}`);
     fetchEmails(1, true);
   }, [fetchEmails]);
 

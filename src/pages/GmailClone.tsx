@@ -15,10 +15,13 @@ import {
   Edit3,
   X,
   AlertCircle,
+  RefreshCw,
+  Bug,
 } from "lucide-react";
 import { useEmails } from "../hooks/useEmails"; // ton hook
 import type { Email } from "../types/email";
 import type { ComposeEmailData } from "../types/api";
+import { emailService } from "../services/emailService";
 
 interface GmailCloneProps {
   user: {
@@ -35,9 +38,18 @@ const GmailClone = ({ user }: GmailCloneProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
   const [showEmailList, setShowEmailList] = useState(true);
+  const [showDiagnostic, setShowDiagnostic] = useState(false);
 
-  const { emails, loading, sendEmail, markAsRead, toggleStar, moveToFolder } =
-    useEmails(currentFolder);
+  const {
+    emails,
+    loading,
+    error,
+    sendEmail,
+    markAsRead,
+    toggleStar,
+    moveToFolder,
+    refresh,
+  } = useEmails(currentFolder);
 
   const folders = [
     {
@@ -81,29 +93,28 @@ const GmailClone = ({ user }: GmailCloneProps) => {
         email.body.toLowerCase().includes(searchQuery.toLowerCase()),
     );
 
-  // DEBUG COMPLET - Maintenant après la définition de currentEmails
+  // ✅ DEBUG COMPLET - Maintenant après la définition de currentEmails
   console.log("=== DEBUG EMAILS ===");
-  console.log("Dossier actuel:", currentFolder);
-  console.log("Tous les emails récupérés:", emails);
-  console.log("Nombre total emails:", emails.length);
+  console.log("👤 Utilisateur actuel:", user);
+  console.log("📁 Dossier actuel:", currentFolder);
+  console.log("📧 Tous les emails récupérés:", emails);
+  console.log("📊 Nombre total emails:", emails.length);
+  console.log("🎯 Emails filtrés pour affichage:", currentEmails);
+  console.log("📊 Nombre emails affichés:", currentEmails.length);
+  console.log("⏳ Loading:", loading);
+  console.log("❌ Error:", error);
 
   // DEBUG DÉTAILLÉ : Voir la structure des emails
   if (emails.length > 0) {
-    console.log("Premier email:", emails[0]);
-    console.log("Propriétés du premier email:", Object.keys(emails[0]));
+    console.log("🔍 Premier email:", emails[0]);
+    console.log("🔑 Propriétés du premier email:", Object.keys(emails[0]));
+
     emails.forEach((email, index) => {
       console.log(
-        `Email ${index + 1} - ID: ${email.id}, folder: "${email.folder}"`,
+        `📧 Email ${index + 1} - ID: ${email.id}, folder: "${email.folder}", from: "${email.from}", to: "${email.to}"`,
       );
     });
   }
-
-  console.log(
-    'Emails avec folder "sent":',
-    emails.filter((e) => e.folder === "sent"),
-  );
-  console.log("Emails filtrés pour affichage:", currentEmails);
-  console.log("Loading:", loading);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -139,12 +150,124 @@ const GmailClone = ({ user }: GmailCloneProps) => {
   const getInitial = (str?: string) =>
     str && str.length > 0 ? str.charAt(0).toUpperCase() : "U";
 
+  // ✅ NOUVEAU: Fonctions de diagnostic
+  const createTestEmail = async () => {
+    try {
+      await emailService.createTestEmail();
+      setTimeout(() => refresh(), 1000); // Attendre et rafraîchir
+    } catch (error) {
+      console.error("Erreur création email de test:", error);
+    }
+  };
+
+  const EmailDiagnostic = () => {
+    const [isRunning, setIsRunning] = useState(false);
+    const [results, setResults] = useState<string[]>([]);
+
+    const addResult = (message: string) => {
+      setResults((prev) => [
+        ...prev,
+        `${new Date().toLocaleTimeString()}: ${message}`,
+      ]);
+    };
+
+    const clearResults = () => {
+      setResults([]);
+    };
+
+    const runDiagnostic = async () => {
+      setIsRunning(true);
+      clearResults();
+
+      addResult("🚀 Début du diagnostic...");
+
+      try {
+        // Test 1: Récupérer tous les emails
+        addResult("📋 Test 1: Récupération inbox");
+        await emailService.getEmails("inbox", 1);
+        addResult("✅ Test 1 terminé (voir console)");
+
+        // Test 2: Créer un email de test
+        addResult("📧 Test 2: Création email de test");
+        await emailService.createTestEmail();
+        addResult("✅ Test 2 terminé");
+
+        // Test 3: Re-récupérer après création
+        addResult("🔄 Test 3: Re-récupération");
+        await emailService.getEmails("inbox", 1);
+        addResult("✅ Test 3 terminé");
+      } catch (error: any) {
+        addResult(`❌ Erreur: ${error.message}`);
+      } finally {
+        setIsRunning(false);
+        addResult("🏁 Diagnostic terminé");
+      }
+    };
+
+    return showDiagnostic ? (
+      <div className="fixed top-4 right-4 z-50 max-h-96 w-96 rounded-lg border-2 border-blue-500 bg-white shadow-lg">
+        <div className="flex items-center justify-between border-b bg-blue-500 p-4 text-white">
+          <h3 className="font-bold">🔧 Diagnostic Email</h3>
+          <button onClick={() => setShowDiagnostic(false)}>
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="p-4">
+          <div className="mb-4 space-y-2">
+            <button
+              onClick={runDiagnostic}
+              disabled={isRunning}
+              className="w-full rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isRunning ? "🔄 En cours..." : "🚀 Diagnostic Complet"}
+            </button>
+
+            <button
+              onClick={createTestEmail}
+              disabled={isRunning}
+              className="w-full rounded bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700 disabled:opacity-50"
+            >
+              {isRunning ? "🔄 En cours..." : "📧 Créer Email Test"}
+            </button>
+
+            <button
+              onClick={clearResults}
+              className="w-full rounded bg-gray-600 px-4 py-2 text-sm text-white hover:bg-gray-700"
+            >
+              🗑️ Effacer Résultats
+            </button>
+          </div>
+
+          <div className="max-h-48 overflow-y-auto rounded bg-gray-100 p-2 text-xs">
+            {results.length === 0 ? (
+              <p className="text-gray-500 italic">Aucun résultat</p>
+            ) : (
+              results.map((result, index) => (
+                <div key={index} className="mb-1 font-mono">
+                  {result}
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mt-2 text-xs text-gray-500">
+            💡 Regardez la console pour plus de détails
+          </div>
+        </div>
+      </div>
+    ) : null;
+  };
+
   const ComposeModal = () => {
     const [to, setTo] = useState("");
     const [subject, setSubject] = useState("");
     const [body, setBody] = useState("");
+    const [sending, setSending] = useState(false);
 
     const handleSend = async () => {
+      setSending(true);
+
       const newEmailData: ComposeEmailData = {
         to: to.split(",").map((e) => e.trim()),
         subject,
@@ -152,22 +275,28 @@ const GmailClone = ({ user }: GmailCloneProps) => {
         folder: "sent",
         isRead: true,
         sentAt: new Date().toISOString(),
-        // Ajouter l'expéditeur depuis les données utilisateur
         from: user.email || user.username,
       };
 
+      console.log("📤 Composing email:", newEmailData);
+
       const success = await sendEmail(newEmailData);
       if (success) {
+        console.log("✅ Email sent successfully!");
         setShowCompose(false);
         setTo("");
         setSubject("");
         setBody("");
 
-        // CORRECTION 1: Basculer automatiquement vers le dossier "sent" après envoi
+        // ✅ Basculer vers le dossier "sent" après envoi réussi
         setCurrentFolder("sent");
         setSelectedEmail(null);
         setShowEmailList(true);
+      } else {
+        console.error("❌ Failed to send email");
       }
+
+      setSending(false);
     };
 
     return (
@@ -175,7 +304,7 @@ const GmailClone = ({ user }: GmailCloneProps) => {
         <div className="mx-4 flex max-h-[80vh] w-full max-w-2xl flex-col rounded-lg bg-white">
           <div className="flex items-center justify-between border-b p-4">
             <h2 className="text-lg font-semibold">Nouveau message</h2>
-            <button onClick={() => setShowCompose(false)}>
+            <button onClick={() => setShowCompose(false)} disabled={sending}>
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -190,6 +319,7 @@ const GmailClone = ({ user }: GmailCloneProps) => {
                   onChange={(e) => setTo(e.target.value)}
                   className="w-full rounded-md border px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   placeholder="destinataire@eni.mg"
+                  disabled={sending}
                 />
               </div>
               <div>
@@ -201,6 +331,7 @@ const GmailClone = ({ user }: GmailCloneProps) => {
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   className="w-full rounded-md border px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  disabled={sending}
                 />
               </div>
             </div>
@@ -211,13 +342,17 @@ const GmailClone = ({ user }: GmailCloneProps) => {
                 onChange={(e) => setBody(e.target.value)}
                 className="h-full min-h-[200px] w-full resize-none rounded-md border px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 placeholder="Rédigez votre message..."
+                disabled={sending}
               />
             </div>
           </div>
 
           <div className="flex items-center justify-between border-t p-4">
             <div className="flex items-center space-x-2">
-              <button className="rounded p-2 hover:bg-gray-100">
+              <button
+                className="rounded p-2 hover:bg-gray-100"
+                disabled={sending}
+              >
                 <Paperclip className="h-5 w-5" />
               </button>
             </div>
@@ -225,16 +360,21 @@ const GmailClone = ({ user }: GmailCloneProps) => {
               <button
                 onClick={() => setShowCompose(false)}
                 className="rounded-md px-4 py-2 text-gray-600 hover:bg-gray-100"
+                disabled={sending}
               >
                 Annuler
               </button>
               <button
                 onClick={handleSend}
-                disabled={!to || !subject}
+                disabled={!to || !subject || sending}
                 className="flex items-center space-x-2 rounded-md bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <Send className="h-4 w-4" />
-                <span>Envoyer</span>
+                {sending ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                <span>{sending ? "Envoi..." : "Envoyer"}</span>
               </button>
             </div>
           </div>
@@ -293,7 +433,7 @@ const GmailClone = ({ user }: GmailCloneProps) => {
                 <div>
                   <div className="font-medium">{email.from}</div>
                   <div className="text-sm text-gray-600">
-                    à {email.to.join(", ")}
+                    à {Array.isArray(email.to) ? email.to.join(", ") : email.to}
                   </div>
                 </div>
               </div>
@@ -341,6 +481,7 @@ const GmailClone = ({ user }: GmailCloneProps) => {
             <button
               key={folder.id}
               onClick={() => {
+                console.log(`📁 Switching to folder: ${folder.id}`);
                 setCurrentFolder(folder.id);
                 setSelectedEmail(null);
                 setShowEmailList(true);
@@ -376,14 +517,21 @@ const GmailClone = ({ user }: GmailCloneProps) => {
             <button className="rounded p-1 hover:bg-gray-100">
               <Settings className="h-4 w-4" />
             </button>
+            <button
+              onClick={() => setShowDiagnostic(true)}
+              className="rounded p-1 hover:bg-gray-100"
+              title="Diagnostic"
+            >
+              <Bug className="h-4 w-4" />
+            </button>
           </div>
           <button
             onClick={() => {
-              // supprimer le user du localStorage et recharger la page
               localStorage.removeItem("user");
+              localStorage.removeItem("jwt");
               window.location.reload();
             }}
-            className="mt-2 rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700"
+            className="mt-2 w-full rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700"
           >
             Déconnexion
           </button>
@@ -412,17 +560,43 @@ const GmailClone = ({ user }: GmailCloneProps) => {
             <h2 className="font-semibold text-gray-900">
               {folders.find((f) => f.id === currentFolder)?.name}
             </h2>
-            <span className="text-sm text-gray-500">
-              {currentEmails.length} email
-              {currentEmails.length !== 1 ? "s" : ""}
-            </span>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-500">
+                {currentEmails.length} email
+                {currentEmails.length !== 1 ? "s" : ""}
+              </span>
+              <button
+                onClick={() => {
+                  console.log("🔄 Manual refresh requested");
+                  refresh();
+                }}
+                className="rounded p-1 hover:bg-gray-100"
+                title="Actualiser"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                />
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex h-64 items-center justify-center text-gray-500">
+              <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
               Chargement...
+            </div>
+          ) : error ? (
+            <div className="flex h-64 flex-col items-center justify-center text-red-500">
+              <AlertCircle className="mb-2 h-8 w-8" />
+              <p className="text-center">Erreur: {error}</p>
+              <button
+                onClick={refresh}
+                className="mt-2 rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+              >
+                Réessayer
+              </button>
             </div>
           ) : currentEmails.length === 0 ? (
             <div className="flex h-64 flex-col items-center justify-center text-gray-500">
@@ -430,14 +604,20 @@ const GmailClone = ({ user }: GmailCloneProps) => {
               <p className="text-center">
                 {searchQuery
                   ? "Aucun email trouvé"
-                  : "Aucun email dans ce dossier"}
+                  : `Aucun email dans ${folders.find((f) => f.id === currentFolder)?.name?.toLowerCase()}`}
               </p>
+              {currentFolder === "inbox" && (
+                <p className="mt-2 text-center text-xs text-gray-400">
+                  Les emails reçus apparaîtront ici
+                </p>
+              )}
             </div>
           ) : (
             currentEmails.map((email) => (
               <div
                 key={email.id}
                 onClick={() => {
+                  console.log("📖 Opening email:", email);
                   setSelectedEmail(email);
                   setShowEmailList(false);
                 }}
@@ -521,12 +701,22 @@ const GmailClone = ({ user }: GmailCloneProps) => {
             <Mail className="mx-auto mb-4 h-16 w-16 text-gray-300" />
             <h3 className="mb-2 text-lg font-medium">Webmail ENI</h3>
             <p>Sélectionnez un email pour le lire</p>
+            <div className="mt-4 text-xs text-gray-400">
+              <p>
+                👤 Utilisateur: {user.username} ({user.email})
+              </p>
+              <p>📁 Dossier: {currentFolder}</p>
+              <p>📊 {emails.length} emails chargés</p>
+            </div>
           </div>
         </div>
       )}
 
       {/* Compose Modal */}
       {showCompose && <ComposeModal />}
+
+      {/* Diagnostic Modal */}
+      <EmailDiagnostic />
     </div>
   );
 };
