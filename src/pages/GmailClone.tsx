@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Mail,
   Send,
@@ -57,7 +57,6 @@ const GmailClone = ({ user }: GmailCloneProps) => {
     loading,
     error,
     sendEmail,
-    markAsRead,
     toggleStar,
     moveToFolder,
     refresh,
@@ -442,9 +441,17 @@ const GmailClone = ({ user }: GmailCloneProps) => {
     );
   };
 
-  const EmailViewer = ({ email }: { email: Email }) => {
-    if (!email.isRead) markAsRead(email.id, true);
-
+  const EmailViewer = ({
+    email,
+    setSelectedEmail,
+    toggleStar,
+    moveToFolder,
+  }: {
+    email: Email;
+    setSelectedEmail: (e: Email | null) => void;
+    toggleStar: (id: string | number, isStarred: boolean) => Promise<void>;
+    moveToFolder: (id: string | number, folder: string) => Promise<void>;
+  }) => {
     return (
       <div className="flex flex-1 flex-col bg-white">
         <div className="border-b p-4">
@@ -457,8 +464,12 @@ const GmailClone = ({ user }: GmailCloneProps) => {
             </button>
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => toggleStar(email.id)}
-                className={`rounded p-2 hover:bg-gray-100 ${email.isStarred ? "text-yellow-500" : ""}`}
+                onClick={async () =>
+                  await toggleStar(email.id, email.isStarred)
+                }
+                className={`rounded p-2 hover:bg-gray-100 ${
+                  email.isStarred ? "text-yellow-500" : ""
+                }`}
               >
                 <Star
                   className={`h-5 w-5 ${email.isStarred ? "fill-current" : ""}`}
@@ -758,7 +769,12 @@ const GmailClone = ({ user }: GmailCloneProps) => {
 
       {/* Email Content */}
       {selectedEmail ? (
-        <EmailViewer email={selectedEmail} />
+        <EmailViewer
+          email={selectedEmail}
+          setSelectedEmail={setSelectedEmail}
+          toggleStar={(id) => toggleStar(String(id))}
+          moveToFolder={(id, folder) => moveToFolder(String(id), folder)}
+        />
       ) : (
         <div className="flex flex-1 items-center justify-center bg-gray-50">
           <div className="text-center text-gray-500">

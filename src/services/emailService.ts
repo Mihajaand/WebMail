@@ -313,32 +313,6 @@ class EmailService {
     return id; // Fallback vers l'ID original
   }
 
-  async markAsRead(id: string, isRead: boolean): Promise<void> {
-    console.log(`📖 Marquage email ${id} comme lu: ${isRead}`);
-
-    try {
-      // Essayer d'abord avec l'id numérique (ancienne méthode)
-      await this.fetchApi(`/emails/${id}`, {
-        method: "PUT",
-        body: JSON.stringify({ data: { isRead } }),
-      });
-    } catch (error) {
-      console.warn(`❌ Échec avec ID ${id}, tentative avec documentId...`);
-
-      try {
-        const correctId = await this.getEmailIdentifier(id);
-        await this.fetchApi(`/emails/${correctId}`, {
-          method: "PUT",
-          body: JSON.stringify({ data: { isRead } }),
-        });
-      } catch (retryError) {
-        console.error(`❌ Échec final pour markAsRead:`, retryError);
-        // On ne relance pas l'erreur pour éviter de bloquer l'interface
-        // L'email reste fonctionnel même si le statut "lu" n'est pas mis à jour
-      }
-    }
-  }
-
   async toggleStar(id: string, isStarred: boolean): Promise<void> {
     console.log(`⭐ Toggle star email ${id}: ${isStarred}`);
 

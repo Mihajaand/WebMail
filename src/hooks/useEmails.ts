@@ -200,28 +200,6 @@ export const useEmails = (folder: string = "inbox") => {
     [fetchEmails],
   );
 
-  const markAsRead = useCallback(async (id: string, isRead: boolean) => {
-    try {
-      console.log(`📖 Marking email ${id} as read: ${isRead}`);
-      await emailService.markAsRead(id, isRead);
-      setState((prev) => ({
-        ...prev,
-        emails: prev.emails.map((email) =>
-          email.id === id ? { ...email, isRead } : email,
-        ),
-      }));
-    } catch (error) {
-      console.error("❌ Error marking email as read:", error);
-      setState((prev) => ({
-        ...prev,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Erreur lors de la mise à jour",
-      }));
-    }
-  }, []);
-
   const toggleStar = useCallback(
     async (id: string) => {
       try {
@@ -354,7 +332,6 @@ export const useEmails = (folder: string = "inbox") => {
   return {
     ...state,
     sendEmail,
-    markAsRead,
     toggleStar,
     moveToFolder,
     deleteEmail,

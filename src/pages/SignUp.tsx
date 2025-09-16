@@ -25,14 +25,12 @@ const SignUp = () => {
       });
 
       const data = await res.json(); // <- lire le body UNE seule fois
-      console.log(data);
 
       if (!res.ok) {
         setError(data.error?.message || "Erreur inconnue");
         return;
       }
 
-      console.log("Utilisateur créé:", data);
       // Sauvegarde user + JWT si besoin
       localStorage.setItem("user", JSON.stringify(data.user));
       localStorage.setItem("jwt", data.jwt);
