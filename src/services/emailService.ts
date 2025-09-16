@@ -1,8 +1,77 @@
-// services/emailService.ts - Version corrigée pour Strapi v4
-import type { ApiResponse, ComposeEmailData } from "../types/api";
+// services/emailService.ts - Version corrigée avec types TypeScript fixes
 import type { CustomFolder, Email } from "../types/email";
 
 const API_BASE = import.meta.env.VITE_STRAPI_URL || "http://localhost:1337/api";
+
+// Types pour les réponses API
+interface ApiResponse<T> {
+  data: T;
+  meta?: {
+    pagination?: {
+      page: number;
+      pageSize: number;
+      pageCount: number;
+      total: number;
+    };
+  };
+}
+
+// Interface pour les données d'email à envoyer
+interface ComposeEmailData {
+  to: string[];
+  cc?: string[];
+  bcc?: string[];
+  subject: string;
+  body: string;
+}
+
+// Interface pour l'utilisateur stocké en localStorage
+interface StoredUser {
+  id: string | number;
+  documentId?: string;
+  username?: string;
+  email?: string;
+  [key: string]: any;
+}
+
+// Interface pour les utilisateurs retournés par l'API
+interface UserResponse {
+  id: string | number;
+  documentId?: string;
+  username: string;
+  email: string;
+  [key: string]: any;
+}
+
+// Interface pour un item Strapi générique
+interface StrapiItem {
+  id: string | number;
+  attributes: any;
+  documentId?: string;
+}
+
+// Types de réponse API pour les utilisateurs
+type UsersApiResponse =
+  | UserResponse[]
+  | { data: StrapiItem[] }
+  | { users: UserResponse[] }
+  | StrapiItem[];
+
+// Interface pour les données d'email
+interface EmailData {
+  from: string;
+  to: string[];
+  cc?: string[];
+  bcc?: string[];
+  subject: string;
+  body: string;
+  folder: string;
+  isRead: boolean;
+  isStarred: boolean;
+  isImportant: boolean;
+  sentAt: string;
+  user: string | number;
+}
 
 class EmailService {
   private async fetchApi<T>(
@@ -54,11 +123,19 @@ class EmailService {
     return jsonResponse as T;
   }
 
+  private getStoredUser(): StoredUser {
+    const userStr = localStorage.getItem("user");
+    if (!userStr) {
+      throw new Error("Utilisateur non trouvé dans localStorage");
+    }
+    return JSON.parse(userStr) as StoredUser;
+  }
+
   async getEmails(
     folder: string = "inbox",
     page: number = 1,
   ): Promise<ApiResponse<Email[]>> {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = this.getStoredUser();
 
     console.log("🔍 DEBUG - Getting emails:", {
       folder,
@@ -84,7 +161,7 @@ class EmailService {
   }
 
   async sendEmail(emailData: ComposeEmailData): Promise<ApiResponse<Email>> {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = this.getStoredUser();
 
     console.log("📤 ENVOI EMAIL - Données:", {
       user,
@@ -106,7 +183,7 @@ class EmailService {
         isImportant: false,
         sentAt: new Date().toISOString(),
         user: user.id,
-      },
+      } as EmailData,
     };
 
     console.log("📦 Payload pour l'envoi:", payload);
@@ -134,7 +211,7 @@ class EmailService {
               folder: "inbox",
               isRead: false,
               user: recipientUser.id,
-            },
+            } as EmailData,
           };
 
           console.log("📦 Payload pour la boîte de réception:", inboxPayload);
@@ -159,7 +236,7 @@ class EmailService {
     return sentEmail;
   }
 
-  private async getUserByEmail(email: string): Promise<any> {
+  private async getUserByEmail(email: string): Promise<UserResponse | null> {
     console.log(`🔍 RECHERCHE UTILISATEUR: ${email}`);
 
     const searchApproaches = [
@@ -171,15 +248,31 @@ class EmailService {
     for (const approach of searchApproaches) {
       try {
         console.log(`🧪 Tentative avec: ${approach}`);
-        const response = await this.fetchApi<any>(approach);
+        const response = await this.fetchApi<UsersApiResponse>(approach);
         console.log(`📡 Réponse:`, response);
 
-        let users = [];
-        if (response.data && Array.isArray(response.data)) {
-          users = response.data;
-        } else if (Array.isArray(response)) {
-          users = response;
-        } else if (response.users && Array.isArray(response.users)) {
+        let users: UserResponse[] = [];
+
+        // Gérer les différents formats de réponse
+        if (Array.isArray(response)) {
+          users = response.map((user: StrapiItem | UserResponse) => {
+            if ("attributes" in user) {
+              const strapiUser = user as StrapiItem;
+              return {
+                id: strapiUser.id,
+                documentId: strapiUser.documentId,
+                ...strapiUser.attributes,
+              } as UserResponse;
+            }
+            return user as UserResponse;
+          });
+        } else if ("data" in response && Array.isArray(response.data)) {
+          users = response.data.map((user: StrapiItem) => ({
+            id: user.id,
+            documentId: user.documentId,
+            ...user.attributes,
+          })) as UserResponse[];
+        } else if ("users" in response && Array.isArray(response.users)) {
           users = response.users;
         }
 
@@ -187,11 +280,8 @@ class EmailService {
 
         if (users.length > 0) {
           const user = users[0];
-          const finalUser = user.attributes
-            ? { id: user.id, ...user.attributes }
-            : user;
-          console.log(`✅ Utilisateur sélectionné:`, finalUser);
-          return finalUser;
+          console.log(`✅ Utilisateur sélectionné:`, user);
+          return user;
         }
       } catch (error) {
         console.log(`❌ Approche ${approach} échouée:`, error);
@@ -203,7 +293,26 @@ class EmailService {
     return null;
   }
 
-  // 🔹 CORRECTION PRINCIPALE : Utiliser documentId pour les mises à jour
+  // Fonction helper pour obtenir l'identifiant correct (documentId ou id)
+  private async getEmailIdentifier(id: string): Promise<string> {
+    try {
+      const emailResponse = await this.fetchApi<ApiResponse<any>>(
+        `/emails?filters[id][$eq]=${id}&populate=*`,
+      );
+
+      if (Array.isArray(emailResponse.data) && emailResponse.data.length > 0) {
+        const email = emailResponse.data[0];
+        return email.id.toString();
+      }
+    } catch (error) {
+      console.warn(
+        `❌ Impossible de récupérer l'identifiant pour ${id}:`,
+        error,
+      );
+    }
+    return id; // Fallback vers l'ID original
+  }
+
   async markAsRead(id: string, isRead: boolean): Promise<void> {
     console.log(`📖 Marquage email ${id} comme lu: ${isRead}`);
 
@@ -216,25 +325,12 @@ class EmailService {
     } catch (error) {
       console.warn(`❌ Échec avec ID ${id}, tentative avec documentId...`);
 
-      // Si ça échoue, essayer de récupérer l'email pour obtenir son documentId
       try {
-        const emailResponse = await this.fetchApi<ApiResponse<any>>(
-          `/emails?filters[id][$eq]=${id}&populate=*`,
-        );
-
-        if (emailResponse.data && emailResponse.data.length > 0) {
-          const email = emailResponse.data[0];
-          const documentId = email.documentId;
-
-          console.log(`🔄 Retry avec documentId: ${documentId}`);
-
-          await this.fetchApi(`/emails/${documentId}`, {
-            method: "PUT",
-            body: JSON.stringify({ data: { isRead } }),
-          });
-        } else {
-          throw new Error(`Email avec ID ${id} non trouvé`);
-        }
+        const correctId = await this.getEmailIdentifier(id);
+        await this.fetchApi(`/emails/${correctId}`, {
+          method: "PUT",
+          body: JSON.stringify({ data: { isRead } }),
+        });
       } catch (retryError) {
         console.error(`❌ Échec final pour markAsRead:`, retryError);
         // On ne relance pas l'erreur pour éviter de bloquer l'interface
@@ -257,19 +353,11 @@ class EmailService {
       );
 
       try {
-        const emailResponse = await this.fetchApi<ApiResponse<any>>(
-          `/emails?filters[id][$eq]=${id}&populate=*`,
-        );
-
-        if (emailResponse.data && emailResponse.data.length > 0) {
-          const email = emailResponse.data[0];
-          const documentId = email.documentId;
-
-          await this.fetchApi(`/emails/${documentId}`, {
-            method: "PUT",
-            body: JSON.stringify({ data: { isStarred } }),
-          });
-        }
+        const correctId = await this.getEmailIdentifier(id);
+        await this.fetchApi(`/emails/${correctId}`, {
+          method: "PUT",
+          body: JSON.stringify({ data: { isStarred } }),
+        });
       } catch (retryError) {
         console.error(`❌ Échec final pour toggleStar:`, retryError);
       }
@@ -290,19 +378,11 @@ class EmailService {
       );
 
       try {
-        const emailResponse = await this.fetchApi<ApiResponse<any>>(
-          `/emails?filters[id][$eq]=${id}&populate=*`,
-        );
-
-        if (emailResponse.data && emailResponse.data.length > 0) {
-          const email = emailResponse.data[0];
-          const documentId = email.documentId;
-
-          await this.fetchApi(`/emails/${documentId}`, {
-            method: "PUT",
-            body: JSON.stringify({ data: { folder } }),
-          });
-        }
+        const correctId = await this.getEmailIdentifier(id);
+        await this.fetchApi(`/emails/${correctId}`, {
+          method: "PUT",
+          body: JSON.stringify({ data: { folder } }),
+        });
       } catch (retryError) {
         console.error(`❌ Échec final pour moveToFolder:`, retryError);
         throw retryError;
@@ -321,16 +401,8 @@ class EmailService {
       );
 
       try {
-        const emailResponse = await this.fetchApi<ApiResponse<any>>(
-          `/emails?filters[id][$eq]=${id}&populate=*`,
-        );
-
-        if (emailResponse.data && emailResponse.data.length > 0) {
-          const email = emailResponse.data[0];
-          const documentId = email.documentId;
-
-          await this.fetchApi(`/emails/${documentId}`, { method: "DELETE" });
-        }
+        const correctId = await this.getEmailIdentifier(id);
+        await this.fetchApi(`/emails/${correctId}`, { method: "DELETE" });
       } catch (retryError) {
         console.error(`❌ Échec final pour deleteEmail:`, retryError);
         throw retryError;
@@ -339,7 +411,7 @@ class EmailService {
   }
 
   async searchEmails(query: string): Promise<ApiResponse<Email[]>> {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = this.getStoredUser();
     return this.fetchApi<ApiResponse<Email[]>>(
       `/emails?filters[user][id][$eq]=${user.id}&filters[$or][0][subject][$containsi]=${query}&filters[$or][1][body][$containsi]=${query}&filters[$or][2][from][$containsi]=${query}&populate=*`,
     );
@@ -353,7 +425,7 @@ class EmailService {
     name: string,
     color: string,
   ): Promise<ApiResponse<CustomFolder>> {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = this.getStoredUser();
     return this.fetchApi<ApiResponse<CustomFolder>>("/folders", {
       method: "POST",
       body: JSON.stringify({
@@ -363,7 +435,7 @@ class EmailService {
   }
 
   async getUnreadCount(folder: string = "inbox"): Promise<number> {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = this.getStoredUser();
     const response = await this.fetchApi<ApiResponse<any>>(
       `/emails?filters[folder][$eq]=${folder}&filters[user][id][$eq]=${user.id}&filters[isRead][$eq]=false&pagination[pageSize]=1`,
     );
@@ -376,7 +448,7 @@ class EmailService {
   }
 
   async createTestEmail(): Promise<void> {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = this.getStoredUser();
 
     const testPayload = {
       data: {
@@ -390,7 +462,7 @@ class EmailService {
         isImportant: false,
         sentAt: new Date().toISOString(),
         user: user.id,
-      },
+      } as EmailData,
     };
 
     console.log("🧪 Création d'un email de test:", testPayload);

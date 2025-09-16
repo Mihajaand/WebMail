@@ -14,6 +14,7 @@ export interface ApiResponse<T> {
   };
 }
 export interface ComposeEmailData {
+  from?: string;
   to: string[];
   cc?: string[];
   bcc?: string[];

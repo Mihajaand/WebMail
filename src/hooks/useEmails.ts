@@ -1,8 +1,16 @@
-// hooks/useEmails.ts
+// hooks/useEmails.ts - Version corrigée pour supporter les messages suivis
 import { useState, useEffect, useCallback } from "react";
 import { emailService } from "../services/emailService";
 import type { Email } from "../types/email";
-import type { ComposeEmailData } from "../types/api";
+
+// Interface locale pour éviter les erreurs d'import
+interface ComposeEmailData {
+  to: string[];
+  cc?: string[];
+  bcc?: string[];
+  subject: string;
+  body: string;
+}
 
 interface UseEmailsState {
   emails: Email[];
@@ -29,63 +37,129 @@ export const useEmails = (folder: string = "inbox") => {
         console.log(`📥 Fetching emails for folder: ${folder}, page: ${page}`);
         setState((prev) => ({ ...prev, loading: true, error: null }));
 
-        const response = await emailService.getEmails(folder, page);
+        let allEmails: Email[] = [];
 
-        console.log("=== DEBUG API RESPONSE ===");
-        console.log("Folder:", folder);
-        console.log("Response complète:", response);
-        console.log("Response.data length:", response.data?.length || 0);
+        // Pour les messages suivis, on doit récupérer de tous les dossiers
+        // pour avoir accès à tous les emails étoilés
+        if (folder === "starred") {
+          console.log("⭐ Fetching starred emails from all folders...");
 
-        if (response.data && response.data[0]) {
-          console.log("Premier item brut:", response.data[0]);
-          console.log(
-            "Attributes du premier item:",
-            response.data[0].attributes,
-          );
+          // Récupérer les emails de tous les dossiers principaux
+          const folders = ["inbox", "sent", "drafts"];
+
+          for (const folderName of folders) {
+            try {
+              console.log(`📁 Fetching from ${folderName}...`);
+              const response = await emailService.getEmails(folderName, page);
+
+              if (response.data && Array.isArray(response.data)) {
+                const folderEmails: Email[] = response.data.map((item: any) => {
+                  if (item.attributes) {
+                    return {
+                      id: String(item.id),
+                      ...item.attributes,
+                    };
+                  } else {
+                    return {
+                      id: String(item.id || item._id),
+                      ...item,
+                    };
+                  }
+                });
+
+                // Ajouter les emails de ce dossier
+                allEmails = [...allEmails, ...folderEmails];
+                console.log(
+                  `✅ Added ${folderEmails.length} emails from ${folderName}`,
+                );
+              }
+            } catch (error) {
+              console.warn(`⚠️ Could not fetch from ${folderName}:`, error);
+              // Continue avec les autres dossiers même si un échoue
+            }
+          }
+
+          console.log(`📊 Total emails collected: ${allEmails.length}`);
+
+          // Filtrer uniquement les emails étoilés
+          const starredEmails = allEmails.filter((email) => {
+            console.log(
+              `Email ${email.id}: isStarred=${email.isStarred}, subject="${email.subject}"`,
+            );
+            return email.isStarred === true;
+          });
+
+          console.log(`⭐ Found ${starredEmails.length} starred emails`);
+          allEmails = starredEmails;
+        } else {
+          // Pour tous les autres dossiers, fonctionnement normal
+          console.log(`📁 Fetching from single folder: ${folder}`);
+          const response = await emailService.getEmails(folder, page);
+
+          console.log("=== DEBUG API RESPONSE ===");
+          console.log("Folder:", folder);
+          console.log("Response complète:", response);
+          console.log("Response.data length:", response.data?.length || 0);
+
+          if (response.data && response.data[0]) {
+            console.log("Premier item brut:", response.data[0]);
+            console.log(
+              "Attributes du premier item:",
+              response.data[0].attributes,
+            );
+          }
+
+          // Convertir les objets Strapi { id, attributes } en Email
+          allEmails = response.data.map((item: any) => {
+            console.log("Processing item for folder", folder, ":", item);
+
+            let email: Email;
+
+            // Si c'est la structure Strapi classique
+            if (item.attributes) {
+              console.log(
+                "Using Strapi structure, attributes:",
+                item.attributes,
+              );
+              email = {
+                id: String(item.id),
+                ...item.attributes,
+              };
+            }
+            // Si c'est une structure directe
+            else {
+              console.log("Using direct structure");
+              email = {
+                id: String(item.id || item._id),
+                ...item,
+              };
+            }
+
+            // Validation : Vérifier que l'email a les bonnes propriétés
+            if (!email.from || !email.subject || !email.sentAt) {
+              console.warn("⚠️ Email incomplet:", email);
+            }
+
+            return email;
+          });
         }
 
-        // 🔹 Convertir les objets Strapi { id, attributes } en Email
-        const emails: Email[] = response.data.map((item: any) => {
-          console.log("Processing item for folder", folder, ":", item);
-
-          let email: Email;
-
-          // Si c'est la structure Strapi classique
-          if (item.attributes) {
-            console.log("Using Strapi structure, attributes:", item.attributes);
-            email = {
-              id: String(item.id),
-              ...item.attributes,
-            };
-          }
-          // Si c'est une structure directe
-          else {
-            console.log("Using direct structure");
-            email = {
-              id: String(item.id || item._id),
-              ...item,
-            };
-          }
-
-          // ✅ VALIDATION : Vérifier que l'email a les bonnes propriétés
-          if (!email.from || !email.subject || !email.sentAt) {
-            console.warn("⚠️ Email incomplet:", email);
-          }
-
-          return email;
-        });
-
         console.log(
-          `✅ Processed ${emails.length} emails for folder ${folder}`,
+          `✅ Processed ${allEmails.length} emails for folder ${folder}`,
         );
-        console.log("Processed emails:", emails);
+        console.log("Processed emails:", allEmails);
+
+        // Trier les emails par date (plus récent en premier)
+        allEmails.sort(
+          (a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime(),
+        );
 
         setState((prev) => ({
           ...prev,
-          emails: reset ? emails : [...prev.emails, ...emails],
-          totalCount: response.meta?.pagination?.total || emails.length,
+          emails: reset ? allEmails : [...prev.emails, ...allEmails],
+          totalCount: allEmails.length,
           currentPage: page,
-          hasMore: page < (response.meta?.pagination?.pageCount || 1),
+          hasMore: false, // Pour simplifier, on charge tout d'un coup
           loading: false,
         }));
       } catch (error) {
@@ -109,9 +183,7 @@ export const useEmails = (folder: string = "inbox") => {
         const result = await emailService.sendEmail(emailData);
         console.log("✅ Email sent successfully:", result);
 
-        // ✅ CORRECTION : Rafraîchir les emails pour refléter les changements
-        // Si on est dans le dossier "sent", on verra le nouvel email envoyé
-        // Si on est dans "inbox" et qu'on s'envoie un email, on le verra aussi
+        // Rafraîchir les emails pour refléter les changements
         await fetchEmails(1, true);
 
         return true;
@@ -170,6 +242,13 @@ export const useEmails = (folder: string = "inbox") => {
             email.id === id ? { ...email, isStarred: newStarred } : email,
           ),
         }));
+
+        // Si on est dans le dossier starred et qu'on retire l'étoile,
+        // on doit rafraîchir pour que l'email disparaisse de la vue
+        if (folder === "starred" && !newStarred) {
+          console.log("🔄 Refreshing starred folder after unstar");
+          setTimeout(() => fetchEmails(1, true), 500);
+        }
       } catch (error) {
         console.error("❌ Error toggling star:", error);
         setState((prev) => ({
@@ -181,7 +260,7 @@ export const useEmails = (folder: string = "inbox") => {
         }));
       }
     },
-    [state.emails],
+    [state.emails, folder, fetchEmails],
   );
 
   const moveToFolder = useCallback(async (id: string, targetFolder: string) => {
@@ -236,7 +315,7 @@ export const useEmails = (folder: string = "inbox") => {
     fetchEmails(1, true);
   }, [fetchEmails, folder]);
 
-  // ✅ NOUVEAU : Auto-refresh périodique pour la boîte de réception
+  // Auto-refresh périodique pour la boîte de réception
   useEffect(() => {
     if (folder === "inbox") {
       const interval = setInterval(() => {

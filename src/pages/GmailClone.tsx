@@ -18,10 +18,18 @@ import {
   RefreshCw,
   Bug,
 } from "lucide-react";
-import { useEmails } from "../hooks/useEmails"; // ton hook
+import { useEmails } from "../hooks/useEmails";
 import type { Email } from "../types/email";
-import type { ComposeEmailData } from "../types/api";
 import { emailService } from "../services/emailService";
+
+// Types locaux pour éviter les erreurs d'import
+interface ComposeEmailData {
+  to: string[];
+  cc?: string[];
+  bcc?: string[];
+  subject: string;
+  body: string;
+}
 
 interface GmailCloneProps {
   user: {
@@ -40,8 +48,12 @@ const GmailClone = ({ user }: GmailCloneProps) => {
   const [showEmailList, setShowEmailList] = useState(true);
   const [showDiagnostic, setShowDiagnostic] = useState(false);
 
+  // Pour les messages suivis, on récupère tous les emails depuis inbox
+  // mais on les filtrera côté client
+  const folderForHook = currentFolder === "starred" ? "inbox" : currentFolder;
+
   const {
-    emails,
+    emails: rawEmails,
     loading,
     error,
     sendEmail,
@@ -49,69 +61,124 @@ const GmailClone = ({ user }: GmailCloneProps) => {
     toggleStar,
     moveToFolder,
     refresh,
-  } = useEmails(currentFolder);
+  } = useEmails(folderForHook);
+
+  // Logique de filtrage des emails améliorée
+  const getFilteredEmails = () => {
+    let filteredEmails: Email[] = [];
+
+    switch (currentFolder) {
+      case "starred":
+        // Pour les messages suivis : tous les emails étoilés, peu importe leur dossier
+        filteredEmails = rawEmails.filter((email) => email.isStarred);
+        break;
+      case "inbox":
+        filteredEmails = rawEmails.filter((email) => email.folder === "inbox");
+        break;
+      case "sent":
+        filteredEmails = rawEmails.filter((email) => email.folder === "sent");
+        break;
+      case "drafts":
+        filteredEmails = rawEmails.filter((email) => email.folder === "drafts");
+        break;
+      case "trash":
+        filteredEmails = rawEmails.filter((email) => email.folder === "trash");
+        break;
+      default:
+        filteredEmails = rawEmails.filter(
+          (email) => email.folder === currentFolder,
+        );
+        break;
+    }
+
+    // Appliquer le filtre de recherche
+    if (searchQuery) {
+      filteredEmails = filteredEmails.filter(
+        (email) =>
+          email.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          email.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          email.body.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
+    }
+
+    return filteredEmails;
+  };
+
+  const currentEmails = getFilteredEmails();
+
+  // Calcul des compteurs pour chaque dossier
+  const getEmailCount = (folderId: string) => {
+    switch (folderId) {
+      case "inbox":
+        return rawEmails.filter((e) => e.folder === "inbox" && !e.isRead)
+          .length;
+      case "starred":
+        return rawEmails.filter((e) => e.isStarred).length;
+      case "sent":
+        return rawEmails.filter((e) => e.folder === "sent").length;
+      case "drafts":
+        return rawEmails.filter((e) => e.folder === "drafts").length;
+      case "trash":
+        return rawEmails.filter((e) => e.folder === "trash").length;
+      default:
+        return 0;
+    }
+  };
 
   const folders = [
     {
       id: "inbox",
       name: "Boîte de réception",
       icon: Inbox,
-      count: emails.filter((e) => e.folder === "inbox" && !e.isRead).length,
+      count: getEmailCount("inbox"),
     },
     {
       id: "starred",
       name: "Messages suivis",
       icon: Star,
-      count: emails.filter((e) => e.isStarred).length,
+      count: getEmailCount("starred"),
     },
     {
       id: "sent",
       name: "Messages envoyés",
       icon: Send,
-      count: emails.filter((e) => e.folder === "sent").length,
+      count: getEmailCount("sent"),
     },
-    { id: "drafts", name: "Brouillons", icon: Edit3, count: 0 },
+    {
+      id: "drafts",
+      name: "Brouillons",
+      icon: Edit3,
+      count: getEmailCount("drafts"),
+    },
     {
       id: "trash",
       name: "Corbeille",
       icon: Trash2,
-      count: emails.filter((e) => e.folder === "trash").length,
+      count: getEmailCount("trash"),
     },
   ];
 
-  const currentEmails = emails
-    .filter((email) =>
-      currentFolder === "starred"
-        ? email.isStarred
-        : email.folder === currentFolder,
-    )
-    .filter(
-      (email) =>
-        searchQuery === "" ||
-        email.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        email.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        email.body.toLowerCase().includes(searchQuery.toLowerCase()),
-    );
-
-  // ✅ DEBUG COMPLET - Maintenant après la définition de currentEmails
+  // Debug complet
   console.log("=== DEBUG EMAILS ===");
   console.log("👤 Utilisateur actuel:", user);
   console.log("📁 Dossier actuel:", currentFolder);
-  console.log("📧 Tous les emails récupérés:", emails);
-  console.log("📊 Nombre total emails:", emails.length);
+  console.log("📁 Dossier pour hook:", folderForHook);
+  console.log("📧 Tous les emails bruts:", rawEmails);
+  console.log("📊 Nombre total emails bruts:", rawEmails.length);
   console.log("🎯 Emails filtrés pour affichage:", currentEmails);
   console.log("📊 Nombre emails affichés:", currentEmails.length);
   console.log("⏳ Loading:", loading);
   console.log("❌ Error:", error);
 
-  // DEBUG DÉTAILLÉ : Voir la structure des emails
-  if (emails.length > 0) {
-    console.log("🔍 Premier email:", emails[0]);
-    console.log("🔑 Propriétés du premier email:", Object.keys(emails[0]));
-
-    emails.forEach((email, index) => {
+  if (currentFolder === "starred") {
+    console.log("⭐ STARRED DEBUG:");
+    console.log(
+      "Emails étoilés:",
+      rawEmails.filter((e) => e.isStarred),
+    );
+    rawEmails.forEach((email, index) => {
       console.log(
-        `📧 Email ${index + 1} - ID: ${email.id}, folder: "${email.folder}", from: "${email.from}", to: "${email.to}"`,
+        `Email ${index}: isStarred=${email.isStarred}, folder=${email.folder}, subject=${email.subject}`,
       );
     });
   }
@@ -150,11 +217,11 @@ const GmailClone = ({ user }: GmailCloneProps) => {
   const getInitial = (str?: string) =>
     str && str.length > 0 ? str.charAt(0).toUpperCase() : "U";
 
-  // ✅ NOUVEAU: Fonctions de diagnostic
+  // Fonctions de diagnostic
   const createTestEmail = async () => {
     try {
       await emailService.createTestEmail();
-      setTimeout(() => refresh(), 1000); // Attendre et rafraîchir
+      setTimeout(() => refresh(), 1000);
     } catch (error) {
       console.error("Erreur création email de test:", error);
     }
@@ -182,17 +249,14 @@ const GmailClone = ({ user }: GmailCloneProps) => {
       addResult("🚀 Début du diagnostic...");
 
       try {
-        // Test 1: Récupérer tous les emails
         addResult("📋 Test 1: Récupération inbox");
         await emailService.getEmails("inbox", 1);
         addResult("✅ Test 1 terminé (voir console)");
 
-        // Test 2: Créer un email de test
         addResult("📧 Test 2: Création email de test");
         await emailService.createTestEmail();
         addResult("✅ Test 2 terminé");
 
-        // Test 3: Re-récupérer après création
         addResult("🔄 Test 3: Re-récupération");
         await emailService.getEmails("inbox", 1);
         addResult("✅ Test 3 terminé");
@@ -272,10 +336,6 @@ const GmailClone = ({ user }: GmailCloneProps) => {
         to: to.split(",").map((e) => e.trim()),
         subject,
         body,
-        folder: "sent",
-        isRead: true,
-        sentAt: new Date().toISOString(),
-        from: user.email || user.username,
       };
 
       console.log("📤 Composing email:", newEmailData);
@@ -288,7 +348,6 @@ const GmailClone = ({ user }: GmailCloneProps) => {
         setSubject("");
         setBody("");
 
-        // ✅ Basculer vers le dossier "sent" après envoi réussi
         setCurrentFolder("sent");
         setSelectedEmail(null);
         setShowEmailList(true);
@@ -611,6 +670,11 @@ const GmailClone = ({ user }: GmailCloneProps) => {
                   Les emails reçus apparaîtront ici
                 </p>
               )}
+              {currentFolder === "starred" && (
+                <p className="mt-2 text-center text-xs text-gray-400">
+                  Marquez des emails d'une étoile pour les voir ici
+                </p>
+              )}
             </div>
           ) : (
             currentEmails.map((email) => (
@@ -706,7 +770,7 @@ const GmailClone = ({ user }: GmailCloneProps) => {
                 👤 Utilisateur: {user.username} ({user.email})
               </p>
               <p>📁 Dossier: {currentFolder}</p>
-              <p>📊 {emails.length} emails chargés</p>
+              <p>📊 {rawEmails.length} emails chargés</p>
             </div>
           </div>
         </div>
