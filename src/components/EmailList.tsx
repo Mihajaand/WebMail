@@ -69,6 +69,9 @@ const EmailList = ({
       return date.toLocaleTimeString("fr-FR", {
         hour: "2-digit",
         minute: "2-digit",
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
       });
     } else if (diffDays === 1) {
       return "Hier";
@@ -78,6 +81,9 @@ const EmailList = ({
       return date.toLocaleDateString("fr-FR", {
         day: "numeric",
         month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
     }
   };

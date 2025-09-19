@@ -1,4 +1,11 @@
-import { ChevronLeft, Star, Archive, Trash2, MoreVertical } from "lucide-react";
+import {
+  ChevronLeft,
+  Star,
+  Archive,
+  Trash2,
+  MoreVertical,
+  CornerUpLeft,
+} from "lucide-react";
 import type { Email } from "../types/email";
 
 interface EmailViewerProps {
@@ -24,6 +31,9 @@ const EmailViewer = ({
       return date.toLocaleTimeString("fr-FR", {
         hour: "2-digit",
         minute: "2-digit",
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
       });
     } else if (diffDays === 1) {
       return "Hier";
@@ -33,6 +43,9 @@ const EmailViewer = ({
       return date.toLocaleDateString("fr-FR", {
         day: "numeric",
         month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
     }
   };
@@ -109,8 +122,8 @@ const EmailViewer = ({
       </div>
 
       <div className="border-t p-4">
-        <button className="flex items-center space-x-2 rounded-md px-4 py-2 text-blue-600 hover:bg-blue-50">
-          <ChevronLeft className="h-4 w-4" />
+        <button className="flex cursor-pointer items-center space-x-2 rounded-md bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-800">
+          <CornerUpLeft className="h-4 w-4" />
           <span>Répondre</span>
         </button>
       </div>

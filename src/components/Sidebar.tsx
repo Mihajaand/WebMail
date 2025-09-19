@@ -102,9 +102,11 @@ const Sidebar = ({
             }`}
           >
             <folder.icon className="h-5 w-5" />
-            <span className="flex-1 text-left">{folder.name}</span>
+            <span className="flex-1 cursor-pointer text-left">
+              {folder.name}
+            </span>
             {folder.count > 0 && (
-              <span className="rounded-full bg-gray-200 px-2 py-1 text-xs text-gray-700">
+              <span className="mb-1 rounded-full bg-red-500 px-1 text-xs text-white">
                 {folder.count}
               </span>
             )}
