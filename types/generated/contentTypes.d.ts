@@ -424,10 +424,17 @@ export interface ApiEmailEmail extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    deliveredAt: Schema.Attribute.DateTime;
+    deliveryStatus: Schema.Attribute.Enumeration<
+      ['delivered', 'pending', 'failed', 'mixed']
+    >;
+    externalRecipients: Schema.Attribute.JSON;
     folder: Schema.Attribute.Enumeration<
       ['inbox', 'sent', 'draft', 'trash', 'spam']
     >;
     from: Schema.Attribute.Email;
+    hasExternalRecipients: Schema.Attribute.Boolean;
+    internalRecipients: Schema.Attribute.JSON;
     isImportant: Schema.Attribute.Boolean;
     isRead: Schema.Attribute.Boolean;
     isStarred: Schema.Attribute.Boolean;

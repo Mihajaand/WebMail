@@ -61,6 +61,27 @@
       "type": "relation",
       "relation": "oneToOne",
       "target": "plugin::users-permissions.user"
+    },
+    "hasExternalRecipients": {
+      "type": "boolean"
+    },
+    "externalRecipients": {
+      "type": "json"
+    },
+    "internalRecipients": {
+      "type": "json"
+    },
+    "deliveryStatus": {
+      "type": "enumeration",
+      "enum": [
+        "delivered",
+        "pending",
+        "failed",
+        "mixed"
+      ]
+    },
+    "deliveredAt": {
+      "type": "datetime"
     }
   }
 }
