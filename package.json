@@ -12,6 +12,7 @@
     "format:check": "prettier . --check"
   },
   "dependencies": {
+    "@emailjs/browser": "^4.4.1",
     "flowbite-react": "^0.12.4",
     "lucide-react": "^0.544.0",
     "react": "^19.1.0",

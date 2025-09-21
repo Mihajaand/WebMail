@@ -1,5 +1,6 @@
-// services/emailService.ts - Version complète et corrigée avec gestion des brouillons
+// services/emailService.ts - Version complète et corrigée avec gestion des brouillons et EmailJS
 import type { CustomFolder, Email } from "../types/email";
+import { emailjsService } from "./emailjsService";
 
 const API_BASE = import.meta.env.VITE_STRAPI_URL || "http://localhost:1337/api";
 
@@ -76,6 +77,12 @@ interface EmailData {
   isImportant: boolean;
   sentAt: string;
   user: string | number;
+  // Nouveaux champs pour la gestion externe
+  hasExternalRecipients?: boolean;
+  externalRecipients?: string[];
+  internalRecipients?: string[];
+  deliveryStatus?: "pending" | "delivered" | "failed" | "mixed";
+  deliveredAt?: string;
 }
 
 class EmailService {
@@ -168,12 +175,25 @@ class EmailService {
   async sendEmail(emailData: ComposeEmailData): Promise<ApiResponse<Email>> {
     const user = this.getStoredUser();
 
-    console.log("📤 ENVOI EMAIL - Données:", {
+    console.log("📤 ENVOI EMAIL - Analyse des destinataires:", {
       user,
       emailData,
       userEmail: user.email || `${user.username}@eni.mg`,
     });
 
+    // Analyser tous les destinataires (to, cc, bcc)
+    const allRecipients = [
+      ...emailData.to,
+      ...(emailData.cc || []),
+      ...(emailData.bcc || []),
+    ];
+
+    const { internal, external } =
+      emailjsService.categorizeRecipients(allRecipients);
+
+    console.log("📊 Analyse destinataires:", { internal, external });
+
+    // Sauvegarder l'email dans Strapi (copie locale)
     const payload = {
       data: {
         from: user.email || `${user.username}@eni.mg`,
@@ -188,8 +208,20 @@ class EmailService {
         isImportant: false,
         sentAt: new Date().toISOString(),
         user: user.id,
+        // Temporairement commenté jusqu'à mise à jour du modèle Strapi
+        // hasExternalRecipients: external.length > 0,
+        // externalRecipients: external,
+        // internalRecipients: internal,
+        // deliveryStatus: external.length > 0 ? 'pending' : 'delivered',
       } as EmailData,
     };
+
+    console.log("📊 Info tracking (non sauvé en DB):", {
+      hasExternalRecipients: external.length > 0,
+      externalRecipients: external,
+      internalRecipients: internal,
+      deliveryStatus: external.length > 0 ? "pending" : "delivered",
+    });
 
     console.log("📦 Payload pour l'envoi:", payload);
 
@@ -200,45 +232,211 @@ class EmailService {
 
     console.log("✅ Email sauvé dans sent:", sentEmail);
 
-    // Créer des copies dans la boîte de réception des destinataires
-    for (const recipientEmail of emailData.to) {
+    // 1. Traiter les destinataires INTERNES (comme avant)
+    if (internal.length > 0) {
+      console.log(`📨 Traitement de ${internal.length} destinataires internes`);
+
+      for (const recipientEmail of internal) {
+        try {
+          console.log(
+            `📨 Recherche du destinataire interne: ${recipientEmail}`,
+          );
+          const recipientUser = await this.getUserByEmail(recipientEmail);
+
+          if (recipientUser) {
+            console.log(`👤 Destinataire interne trouvé:`, recipientUser);
+
+            const inboxPayload = {
+              data: {
+                from: user.email || `${user.username}@eni.mg`,
+                to: [recipientEmail],
+                cc:
+                  emailData.cc?.filter(
+                    (email) => !emailjsService.isExternalEmail(email),
+                  ) || [],
+                bcc:
+                  emailData.bcc?.filter(
+                    (email) => !emailjsService.isExternalEmail(email),
+                  ) || [],
+                subject: emailData.subject,
+                body: emailData.body,
+                folder: "inbox",
+                isRead: false,
+                user: recipientUser.id,
+                sentAt: new Date().toISOString(),
+                isStarred: false,
+                isImportant: false,
+              } as EmailData,
+            };
+
+            const deliveredEmail = await this.fetchApi<ApiResponse<Email>>(
+              "/emails",
+              {
+                method: "POST",
+                body: JSON.stringify(inboxPayload),
+              },
+            );
+
+            console.log(
+              `✅ Email livré en interne à ${recipientEmail}:`,
+              deliveredEmail,
+            );
+          } else {
+            console.warn(
+              `⚠️ Destinataire interne non trouvé: ${recipientEmail}`,
+            );
+          }
+        } catch (error) {
+          console.error(
+            `❌ Erreur livraison interne à ${recipientEmail}:`,
+            error,
+          );
+        }
+      }
+    }
+
+    // 2. Traiter les destinataires EXTERNES via EmailJS
+    if (external.length > 0) {
+      console.log(`📧 Traitement de ${external.length} destinataires externes`);
+
       try {
-        console.log(`📨 Recherche du destinataire: ${recipientEmail}`);
+        // Séparer to, cc, bcc externes
+        const externalTo = emailData.to.filter((email) =>
+          emailjsService.isExternalEmail(email),
+        );
+        const externalCc = (emailData.cc || []).filter((email) =>
+          emailjsService.isExternalEmail(email),
+        );
+        const externalBcc = (emailData.bcc || []).filter((email) =>
+          emailjsService.isExternalEmail(email),
+        );
 
-        const recipientUser = await this.getUserByEmail(recipientEmail);
+        // Envoyer aux destinataires principaux externes
+        let totalSuccess = 0;
+        let totalFailed = 0;
 
-        if (recipientUser) {
-          console.log(`👤 Destinataire trouvé:`, recipientUser);
-
-          const inboxPayload = {
-            data: {
-              ...payload.data,
-              folder: "inbox",
-              isRead: false,
-              user: recipientUser.id,
-            } as EmailData,
-          };
-
-          console.log("📦 Payload pour la boîte de réception:", inboxPayload);
-
-          const deliveredEmail = await this.fetchApi<ApiResponse<Email>>(
-            "/emails",
-            {
-              method: "POST",
-              body: JSON.stringify(inboxPayload),
-            },
+        if (externalTo.length > 0) {
+          const result = await emailjsService.sendMultipleExternalEmails(
+            user.email || `${user.username}@eni.mg`,
+            externalTo,
+            emailData.subject,
+            emailData.body,
+            externalCc,
+            externalBcc,
           );
 
-          console.log(`✅ Email livré à ${recipientEmail}:`, deliveredEmail);
-        } else {
-          console.warn(`⚠️ Destinataire non trouvé: ${recipientEmail}`);
+          totalSuccess += result.success;
+          totalFailed += result.failed;
+
+          console.log(
+            `📊 Résultat envoi externe TO: ${result.success}/${externalTo.length} succès`,
+          );
         }
+
+        // Mettre à jour le statut de livraison (temporairement désactivé)
+        /*
+        const finalStatus = totalFailed === 0 ? 'delivered' : 
+                          totalSuccess === 0 ? 'failed' : 'mixed';
+
+        await this.updateEmailDeliveryStatus(sentEmail.data.id, finalStatus);
+        */
+
+        console.log("📊 Statut de livraison (non sauvé):", {
+          totalSuccess,
+          totalFailed,
+          finalStatus:
+            totalFailed === 0
+              ? "delivered"
+              : totalSuccess === 0
+                ? "failed"
+                : "mixed",
+        });
+
+        // Si il y a des échecs, créer une notification
+        if (totalFailed > 0) {
+          const failedEmails = external.slice(totalSuccess);
+          await this.createFailureNotification(
+            user,
+            failedEmails,
+            emailData.subject,
+          );
+        }
+
+        console.log("✅ Traitement des emails externes terminé");
       } catch (error) {
-        console.error(`❌ Erreur livraison à ${recipientEmail}:`, error);
+        console.error("❌ Erreur lors de l'envoi d'emails externes:", error);
+
+        // Marquer comme échec et créer une notification (temporairement désactivé)
+        // await this.updateEmailDeliveryStatus(sentEmail.data.id, 'failed');
+        await this.createFailureNotification(user, external, emailData.subject);
       }
     }
 
     return sentEmail;
+  }
+
+  // Nouvelle méthode pour mettre à jour le statut de livraison
+  private async updateEmailDeliveryStatus(
+    emailId: string | number,
+    status: "pending" | "delivered" | "failed" | "mixed",
+  ): Promise<void> {
+    try {
+      await this.fetchApi(`/emails/${emailId}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          data: {
+            deliveryStatus: status,
+            deliveredAt: new Date().toISOString(),
+          },
+        }),
+      });
+      console.log(`✅ Statut de livraison mis à jour: ${status}`);
+    } catch (error) {
+      console.warn(
+        "❌ Impossible de mettre à jour le statut de livraison:",
+        error,
+      );
+    }
+  }
+
+  // Nouvelle méthode pour créer des notifications d'échec
+  private async createFailureNotification(
+    user: StoredUser,
+    failedEmails: string[],
+    originalSubject: string,
+  ): Promise<void> {
+    try {
+      const notification = emailjsService.createFailureNotification(
+        user.email || `${user.username}@eni.mg`,
+        failedEmails,
+        originalSubject,
+      );
+
+      // Créer la notification dans Strapi
+      const notificationPayload = {
+        data: {
+          from: "system@eni.mg",
+          to: notification.to,
+          subject: notification.subject,
+          body: notification.body,
+          folder: "inbox",
+          isRead: false,
+          isStarred: false,
+          isImportant: true, // Marquer comme important
+          sentAt: new Date().toISOString(),
+          user: user.id,
+        } as EmailData,
+      };
+
+      await this.fetchApi<ApiResponse<Email>>("/emails", {
+        method: "POST",
+        body: JSON.stringify(notificationPayload),
+      });
+
+      console.log("📨 Notification d'échec créée");
+    } catch (error) {
+      console.error("❌ Erreur création notification d'échec:", error);
+    }
   }
 
   async saveDraft(draftData: DraftData): Promise<ApiResponse<Email>> {
@@ -754,6 +952,232 @@ class EmailService {
       console.error(`❌ Erreur sync star status pour ${id}:`, error);
       return null;
     }
+  }
+
+  // Nouvelle méthode pour obtenir les statistiques d'envoi
+  async getEmailStats(): Promise<{
+    totalSent: number;
+    internalSent: number;
+    externalSent: number;
+    failed: number;
+    delivered: number;
+    pending: number;
+  }> {
+    try {
+      const user = this.getStoredUser();
+
+      const response = await this.fetchApi<ApiResponse<any>>(
+        `/emails?filters[user][id][$eq]=${user.id}&filters[folder][$eq]=sent&populate=*`,
+      );
+
+      const sentEmails = Array.isArray(response.data) ? response.data : [];
+
+      let totalSent = sentEmails.length;
+      let internalSent = 0;
+      let externalSent = 0;
+      let failed = 0;
+      let delivered = 0;
+      let pending = 0;
+
+      sentEmails.forEach((email: any) => {
+        const emailData = email.attributes || email;
+
+        if (emailData.hasExternalRecipients) {
+          externalSent++;
+        } else {
+          internalSent++;
+        }
+
+        switch (emailData.deliveryStatus) {
+          case "delivered":
+            delivered++;
+            break;
+          case "failed":
+            failed++;
+            break;
+          case "pending":
+            pending++;
+            break;
+          case "mixed":
+            delivered++;
+            break;
+          default:
+            delivered++;
+            break;
+        }
+      });
+
+      const stats = {
+        totalSent,
+        internalSent,
+        externalSent,
+        failed,
+        delivered,
+        pending,
+      };
+
+      console.log("📊 Statistiques d'envoi:", stats);
+      return stats;
+    } catch (error) {
+      console.error("❌ Erreur récupération statistiques:", error);
+      return {
+        totalSent: 0,
+        internalSent: 0,
+        externalSent: 0,
+        failed: 0,
+        delivered: 0,
+        pending: 0,
+      };
+    }
+  }
+
+  // Méthode pour récupérer les emails avec leur statut de livraison
+  async getEmailsWithDeliveryStatus(
+    folder: string = "sent",
+    page: number = 1,
+  ): Promise<ApiResponse<Email[]>> {
+    const user = this.getStoredUser();
+
+    const response = await this.fetchApi<ApiResponse<Email[]>>(
+      `/emails?filters[folder][$eq]=${folder}&filters[user][id][$eq]=${user.id}&sort=sentAt:desc&pagination[page]=${page}&pagination[pageSize]=20&populate=*`,
+    );
+
+    console.log("📧 Emails avec statut de livraison:", response);
+    return response;
+  }
+
+  // Méthode pour réessayer l'envoi d'emails échoués
+  async retryFailedEmail(emailId: string): Promise<boolean> {
+    try {
+      console.log(`🔄 Tentative de renvoi pour l'email: ${emailId}`);
+
+      const email = await this.getEmailById(emailId);
+      if (!email) {
+        console.error("❌ Email non trouvé pour renvoi");
+        return false;
+      }
+
+      // Vérifier si l'email a des destinataires externes échoués
+      const emailData = email as any;
+      if (!emailData.hasExternalRecipients || !emailData.externalRecipients) {
+        console.warn("⚠️ Aucun destinataire externe à renvoyer");
+        return false;
+      }
+
+      // Réessayer l'envoi externe
+      const user = this.getStoredUser();
+      const result = await emailjsService.sendMultipleExternalEmails(
+        user.email || `${user.username}@eni.mg`,
+        emailData.externalRecipients,
+        emailData.subject,
+        emailData.body,
+        emailData.cc || [],
+        emailData.bcc || [],
+      );
+
+      // Mettre à jour le statut
+      const newStatus =
+        result.failed === 0
+          ? "delivered"
+          : result.success === 0
+            ? "failed"
+            : "mixed";
+
+      await this.updateEmailDeliveryStatus(emailId, newStatus);
+
+      console.log(
+        `✅ Renvoi terminé: ${result.success}/${emailData.externalRecipients.length} succès`,
+      );
+      return result.success > 0;
+    } catch (error) {
+      console.error("❌ Erreur lors du renvoi:", error);
+      return false;
+    }
+  }
+
+  // Méthode pour nettoyer les emails anciens
+  async cleanupOldEmails(daysOld: number = 30): Promise<number> {
+    try {
+      const user = this.getStoredUser();
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+      console.log(
+        `🧹 Nettoyage des emails antérieurs au: ${cutoffDate.toISOString()}`,
+      );
+
+      const response = await this.fetchApi<ApiResponse<any>>(
+        `/emails?filters[user][id][$eq]=${user.id}&filters[folder][$eq]=trash&filters[sentAt][$lt]=${cutoffDate.toISOString()}&populate=*`,
+      );
+
+      const oldEmails = Array.isArray(response.data) ? response.data : [];
+      let deletedCount = 0;
+
+      for (const email of oldEmails) {
+        try {
+          await this.deleteEmail(String(email.id));
+          deletedCount++;
+        } catch (error) {
+          console.warn(
+            `❌ Impossible de supprimer l'email ${email.id}:`,
+            error,
+          );
+        }
+      }
+
+      console.log(`✅ ${deletedCount} emails supprimés lors du nettoyage`);
+      return deletedCount;
+    } catch (error) {
+      console.error("❌ Erreur lors du nettoyage:", error);
+      return 0;
+    }
+  }
+
+  // Méthode pour exporter les emails en JSON
+  async exportEmails(folder?: string): Promise<Email[]> {
+    try {
+      const user = this.getStoredUser();
+
+      let query = `/emails?filters[user][id][$eq]=${user.id}&populate=*&pagination[pageSize]=1000`;
+      if (folder) {
+        query += `&filters[folder][$eq]=${folder}`;
+      }
+
+      const response = await this.fetchApi<ApiResponse<any>>(query);
+
+      const emails = Array.isArray(response.data)
+        ? response.data.map((item: any) => {
+            return item.attributes
+              ? { id: String(item.id), ...item.attributes }
+              : { id: String(item.id), ...item };
+          })
+        : [];
+
+      console.log(`📤 Export de ${emails.length} emails`);
+      return emails as Email[];
+    } catch (error) {
+      console.error("❌ Erreur lors de l'export:", error);
+      return [];
+    }
+  }
+
+  // Méthode pour obtenir la configuration EmailJS
+  getEmailJSConfig(): {
+    isEnabled: boolean;
+    hasValidConfig: boolean;
+    serviceId: string | null;
+    templateId: string | null;
+  } {
+    const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID || null;
+    const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || null;
+    const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || null;
+
+    return {
+      isEnabled: !!(serviceId && templateId && publicKey),
+      hasValidConfig: !!(serviceId && templateId && publicKey),
+      serviceId,
+      templateId,
+    };
   }
 }
 
