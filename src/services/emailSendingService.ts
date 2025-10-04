@@ -32,27 +32,28 @@ export class EmailSendingService extends ApiClient {
 
     console.log("📊 Analyse destinataires:", { internal, external });
 
-    // Sauvegarder l'email dans Strapi (copie locale)
-    const payload = {
-      data: {
-        from: user.email || `${user.username}@eni.mg`,
-        to: emailData.to,
-        cc: emailData.cc || [],
-        bcc: emailData.bcc || [],
-        subject: emailData.subject,
-        body: emailData.body,
-        folder: "sent",
-        isRead: true,
-        isStarred: false,
-        isImportant: false,
-        sentAt: new Date().toISOString(),
-        user: user.id,
-        // Temporairement commenté jusqu'à mise à jour du modèle Strapi
-        // hasExternalRecipients: external.length > 0,
-        // externalRecipients: external,
-        // internalRecipients: internal,
-        // deliveryStatus: external.length > 0 ? 'pending' : 'delivered',
-      } as EmailData,
+    // Créer un FormData pour l'envoi des fichiers
+    const formData = new FormData();
+    
+    // Ajouter les données de base
+    const emailPayload: EmailData = {
+      from: user.email || `${user.username}@eni.mg`,
+      to: emailData.to,
+      cc: emailData.cc || [],
+      bcc: emailData.bcc || [],
+      subject: emailData.subject,
+      body: emailData.body,
+      folder: "sent",
+      isRead: true,
+      isStarred: false,
+      isImportant: false,
+      sentAt: new Date().toISOString(),
+      user: user.id,
+      // Temporairement commenté jusqu'à mise à jour du modèle Strapi
+      // hasExternalRecipients: external.length > 0,
+      // externalRecipients: external,
+      // internalRecipients: internal,
+      // deliveryStatus: external.length > 0 ? 'pending' : 'delivered',
     };
 
     console.log("📊 Info tracking (non sauvé en DB):", {
@@ -62,20 +63,97 @@ export class EmailSendingService extends ApiClient {
       deliveryStatus: external.length > 0 ? "pending" : "delivered",
     });
 
-    console.log("📦 Payload pour l'envoi:", payload);
+    console.log("📦 Payload pour l'envoi:", emailPayload);
 
+    // Premier appel API pour créer l'email
     const sentEmail = await this.fetchApi<ApiResponse<Email>>("/emails", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ 
+        data: {
+          ...emailPayload,
+          publishedAt: new Date().toISOString(), // Ajouter le champ publishedAt requis par Strapi
+        }
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
 
-    console.log("✅ Email sauvé dans sent:", sentEmail);
+    // Si il y a des pièces jointes, les uploader dans un second appel
+    if (emailData.attachments && emailData.attachments.length > 0) {
+      try {
+        console.log("📎 Préparation de l'upload des pièces jointes pour l'email:", sentEmail.data.id);
+        
+        const formData = new FormData();
+        
+        // Ajouter les fichiers et les métadonnées de relation
+        emailData.attachments.forEach((file) => {
+          formData.append('files', file);
+        });
+        
+        formData.append('ref', 'api::email.email');
+        formData.append('refId', sentEmail.data.id);
+        formData.append('field', 'attachments');
+
+        console.log("📎 Uploading attachments for email:", {
+          emailId: sentEmail.data.id,
+          filesCount: emailData.attachments.length,
+          files: emailData.attachments.map(f => ({ name: f.name, size: f.size }))
+        });
+
+        // Faire l'upload sans paramètres dans l'URL car ils sont dans le FormData
+        const uploadResponse = await this.fetchApi("/upload", {
+          method: "POST",
+          body: formData,
+          params: {
+            ref: 'api::email.email',
+            refId: sentEmail.data.id,
+            field: 'attachments'
+          },
+          headers: {} // Laisser le navigateur gérer le Content-Type pour le FormData
+        });
+        
+        console.log("✅ Pièces jointes uploadées:", uploadResponse);
+        
+        // Attendre un peu que Strapi finisse de traiter l'upload
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        try {
+          // Récupérer l'email mis à jour avec les pièces jointes
+          const updatedEmail = await this.fetchApi<ApiResponse<Email>>(`/emails/${sentEmail.data.id}?populate[0]=attachments&populate[1]=user`);
+          console.log("✅ Email mis à jour avec pièces jointes:", updatedEmail);
+          sentEmail = updatedEmail;
+        } catch (error) {
+          // Si on ne peut pas récupérer l'email mis à jour, on continue avec l'email original
+          console.warn("⚠️ Impossible de récupérer l'email mis à jour, on continue avec l'original:", error);
+          // On ne relance pas l'erreur ici pour ne pas bloquer le processus
+        }
+      } catch (error) {
+        console.error("❌ Erreur lors de l'upload des pièces jointes:", error);
+        throw error;
+      }
+    }
+
+    console.log("✅ Email final:", sentEmail);
 
     // 1. Traiter les destinataires INTERNES
     await this.processInternalRecipients(internal, emailData, user);
 
     // 2. Traiter les destinataires EXTERNES via EmailJS
-    await this.processExternalRecipients(external, emailData, user, sentEmail);
+    // Convertir les pièces jointes au format attendu par EmailJS
+    const emailjsAttachments = emailData.attachments?.map(file => ({
+      name: file.name,
+      data: file, // EmailJS accepte les objets File directement
+    }));
+
+    // Préparer les données pour le processus externe
+    const externalEmailData = {
+      ...emailData,
+      attachments: emailjsAttachments,
+      from: user.email || `${user.username}@eni.mg`,
+    };
+
+    await this.processExternalRecipients(external, externalEmailData, user, sentEmail);
 
     return sentEmail;
   }

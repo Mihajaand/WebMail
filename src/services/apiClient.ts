@@ -6,10 +6,21 @@ const API_BASE = import.meta.env.VITE_STRAPI_URL || "http://localhost:1337/api";
 export class ApiClient {
   protected async fetchApi<T>(
     endpoint: string,
-    options?: RequestInit,
+    options?: RequestInit & { params?: Record<string, string | number> },
   ): Promise<T> {
     const token = localStorage.getItem("jwt");
-    const fullUrl = `${API_BASE}${endpoint}`;
+    let fullUrl = `${API_BASE}${endpoint}`;
+    
+    // Ajouter les paramètres d'URL si présents
+    if (options?.params) {
+      const queryParams = new URLSearchParams();
+      Object.entries(options.params).forEach(([key, value]) => {
+        queryParams.append(key, String(value));
+      });
+      fullUrl += `?${queryParams.toString()}`;
+      // Supprimer params de options pour ne pas l'envoyer dans fetch
+      delete options.params;
+    }
 
     console.log("🌐 Making API request:", {
       url: fullUrl,

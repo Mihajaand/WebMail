@@ -188,10 +188,24 @@ export const useEmails = (folder: string = "inbox") => {
         console.log("✅ Email sent successfully:", result);
 
         // Rafraîchir les emails pour refléter les changements
-        await fetchEmails(1, true);
+        try {
+          await fetchEmails(1, true);
+        } catch (fetchError) {
+          console.warn("⚠️ Impossible de rafraîchir les emails immédiatement:", fetchError);
+          // On programme un rafraîchissement différé
+          setTimeout(() => fetchEmails(1, true), 2000);
+        }
 
         return true;
       } catch (error) {
+        // Si l'erreur vient de la récupération de l'email mis à jour (404), on considère quand même que l'envoi a réussi
+        if (error instanceof Error && error.message.includes("404 Not Found")) {
+          console.warn("⚠️ Email envoyé mais impossible de le récupérer immédiatement");
+          // On programme un rafraîchissement différé
+          setTimeout(() => fetchEmails(1, true), 2000);
+          return true;
+        }
+
         console.error("❌ Error sending email:", error);
         setState((prev) => ({
           ...prev,

@@ -18,6 +18,7 @@ export interface Email {
   externalRecipients?: string[];
   internalRecipients?: string[];
   deliveryStatus?: "pending" | "delivered" | "failed" | "mixed";
+  attachments?: EmailAttachment[];
   deliveredAt?: string;
 
   // Métadonnées

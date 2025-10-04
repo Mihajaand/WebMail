@@ -25,7 +25,8 @@ class EmailService {
     folder: string = "inbox",
     page: number = 1,
   ): Promise<ApiResponse<Email[]>> {
-    return emailCrudService.getEmails(folder, page);
+    // Ajouter le paramètre populate pour inclure les pièces jointes
+    return emailCrudService.getEmails(folder, page, true);
   }
 
   async getEmail(id: string): Promise<ApiResponse<Email>> {

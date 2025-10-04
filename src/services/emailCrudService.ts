@@ -7,6 +7,7 @@ export class EmailCrudService extends ApiClient {
   async getEmails(
     folder: string = "inbox",
     page: number = 1,
+    includeAttachments: boolean = true,
   ): Promise<ApiResponse<Email[]>> {
     const user = this.getStoredUser();
 
@@ -16,13 +17,15 @@ export class EmailCrudService extends ApiClient {
       user,
       userId: user.id,
       userDocumentId: user.documentId,
+      includeAttachments,
     });
 
     const finalFilters = `filters[folder][$eq]=${folder}&filters[user][id][$eq]=${user.id}`;
+    const populateQuery = includeAttachments ? 'populate[0]=attachments&populate[1]=user' : 'populate=user';
     console.log(`🧪 Requête avec filtres: ${finalFilters}`);
 
     const finalResponse = await this.fetchApi<ApiResponse<Email[]>>(
-      `/emails?${finalFilters}&sort=sentAt:desc&pagination[page]=${page}&pagination[pageSize]=20&populate=*`,
+      `/emails?${finalFilters}&sort=sentAt:desc&pagination[page]=${page}&pagination[pageSize]=20&${populateQuery}`,
     );
 
     console.log("🎯 Réponse finale:", finalResponse);
@@ -30,7 +33,7 @@ export class EmailCrudService extends ApiClient {
   }
 
   async getEmail(id: string): Promise<ApiResponse<Email>> {
-    return this.fetchApi<ApiResponse<Email>>(`/emails/${id}?populate=*`);
+    return this.fetchApi<ApiResponse<Email>>(`/emails/${id}?populate[0]=attachments&populate[1]=user`);
   }
 
   async getEmailById(id: string): Promise<Email | null> {
@@ -45,6 +48,7 @@ export class EmailCrudService extends ApiClient {
 
       for (const approach of approaches) {
         try {
+          console.log(`🔍 Tentative avec l'approche: ${approach}`);
           const response = await this.fetchApi<any>(approach);
 
           if (response.data) {

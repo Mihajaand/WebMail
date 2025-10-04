@@ -5,6 +5,8 @@ import {
   Trash2,
   MoreVertical,
   CornerUpLeft,
+  Paperclip,
+  Download,
 } from "lucide-react";
 import type { Email } from "../types/email";
 
@@ -119,6 +121,33 @@ const EmailViewer = ({
         <div className="leading-relaxed whitespace-pre-wrap text-gray-900">
           {email.body}
         </div>
+
+        {/* Section pièces jointes */}
+        {email.attachments && email.attachments.length > 0 && (
+          <div className="mt-6 border-t pt-4">
+            <h4 className="mb-2 font-medium">Pièces jointes</h4>
+            <div className="space-y-2">
+              {email.attachments.map((attachment, index) => (
+                <div key={index} className="flex items-center justify-between rounded bg-gray-50 px-3 py-2">
+                  <div className="flex items-center space-x-2">
+                    <Paperclip className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm">{attachment.name}</span>
+                    <span className="text-xs text-gray-500">
+                      ({Math.round(attachment.size / 1024)}KB)
+                    </span>
+                  </div>
+                  <a
+                    href={attachment.url}
+                    download={attachment.name}
+                    className="rounded p-1 hover:bg-gray-200"
+                  >
+                    <Download className="h-4 w-4 text-gray-600" />
+                  </a>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="border-t p-4">

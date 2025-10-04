@@ -1,5 +1,5 @@
 // types/emailService.ts - Types et interfaces partagés
-import type { CustomFolder, Email } from "../types/email";
+import type { CustomFolder, Email, EmailAttachment } from "./email";
 
 // Types pour les réponses API
 export interface ApiResponse<T> {
@@ -21,11 +21,33 @@ export interface ComposeEmailData {
   bcc?: string[];
   subject: string;
   body: string;
+  attachments?: File[];
 }
 
 // Interface pour les brouillons
 export interface DraftData extends ComposeEmailData {
   id?: string;
+}
+
+// Interface pour les données d'email à sauvegarder
+export interface EmailData {
+  from: string;
+  to: string[];
+  cc: string[];
+  bcc: string[];
+  subject: string;
+  body: string;
+  folder: string;
+  isRead: boolean;
+  isStarred: boolean;
+  isImportant: boolean;
+  sentAt: string;
+  user: string | number;
+  attachments?: EmailAttachment[];
+  hasExternalRecipients?: boolean;
+  externalRecipients?: string[];
+  internalRecipients?: string[];
+  deliveryStatus?: 'pending' | 'delivered' | 'failed' | 'mixed';
 }
 
 // Interface pour l'utilisateur stocké en localStorage
