@@ -409,6 +409,7 @@ export interface ApiEmailFolderEmailFolder extends Struct.CollectionTypeSchema {
 export interface ApiEmailEmail extends Struct.CollectionTypeSchema {
   collectionName: 'emails';
   info: {
+    description: '';
     displayName: 'Email';
     pluralName: 'emails';
     singularName: 'email';
@@ -417,9 +418,12 @@ export interface ApiEmailEmail extends Struct.CollectionTypeSchema {
     draftAndPublish: true;
   };
   attributes: {
-    attachments: Schema.Attribute.JSON;
+    attachments: Schema.Attribute.Media<
+      'images' | 'files' | 'videos' | 'audios',
+      true
+    >;
     bcc: Schema.Attribute.JSON;
-    body: Schema.Attribute.String;
+    body: Schema.Attribute.Text & Schema.Attribute.Required;
     cc: Schema.Attribute.JSON;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -432,7 +436,7 @@ export interface ApiEmailEmail extends Struct.CollectionTypeSchema {
     folder: Schema.Attribute.Enumeration<
       ['inbox', 'sent', 'draft', 'trash', 'spam']
     >;
-    from: Schema.Attribute.Email;
+    from: Schema.Attribute.Email & Schema.Attribute.Required;
     hasExternalRecipients: Schema.Attribute.Boolean;
     internalRecipients: Schema.Attribute.JSON;
     isImportant: Schema.Attribute.Boolean;
@@ -443,9 +447,9 @@ export interface ApiEmailEmail extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     publishedAt: Schema.Attribute.DateTime;
     sentAt: Schema.Attribute.DateTime;
-    subject: Schema.Attribute.String;
+    subject: Schema.Attribute.String & Schema.Attribute.Required;
     threadId: Schema.Attribute.String;
-    to: Schema.Attribute.JSON;
+    to: Schema.Attribute.JSON & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;

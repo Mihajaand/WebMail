@@ -4,7 +4,8 @@
   "info": {
     "singularName": "email",
     "pluralName": "emails",
-    "displayName": "Email"
+    "displayName": "Email",
+    "description": ""
   },
   "options": {
     "draftAndPublish": true
@@ -12,10 +13,12 @@
   "pluginOptions": {},
   "attributes": {
     "from": {
-      "type": "email"
+      "type": "email",
+      "required": true
     },
     "to": {
-      "type": "json"
+      "type": "json",
+      "required": true
     },
     "cc": {
       "type": "json"
@@ -24,13 +27,23 @@
       "type": "json"
     },
     "subject": {
-      "type": "string"
+      "type": "string",
+      "required": true
     },
     "body": {
-      "type": "string"
+      "type": "text",
+      "required": true
     },
     "attachments": {
-      "type": "json"
+      "type": "media",
+      "multiple": true,
+      "required": false,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
     },
     "folder": {
       "type": "enumeration",
