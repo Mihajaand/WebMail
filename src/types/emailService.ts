@@ -1,21 +1,8 @@
-// types/emailService.ts - Types et interfaces partagés
-import type { CustomFolder, Email, EmailAttachment } from "./email";
+// services/emailService.ts
+import axios from "axios";
 
-// Types pour les réponses API
-export interface ApiResponse<T> {
-  data: T;
-  meta?: {
-    pagination?: {
-      page: number;
-      pageSize: number;
-      pageCount: number;
-      total: number;
-    };
-  };
-}
-
-// Interface pour les données d'email à envoyer
-export interface ComposeEmailData {
+const API_URL = import.meta.env.VITE_STRAPI_URL || "http://localhost:1337/api";
+export type ComposeEmailData {
   to: string[];
   cc?: string[];
   bcc?: string[];
@@ -23,101 +10,115 @@ export interface ComposeEmailData {
   body: string;
   attachments?: File[];
 }
+export const emailService = {
+  async getEmails(folder: string, page: number = 1) {
+    const res = await axios.get(`${API_URL}/emails`, {
+      params: {
+        filters: { folder },
+        populate: ["attachments"],
+        pagination: { page, pageSize: 50 },
+        sort: ["sentAt:desc"],
+      },
+    });
+    return res.data;
+  },
 
-// Interface pour les brouillons
-export interface DraftData extends ComposeEmailData {
-  id?: string;
-}
+  async sendEmail(emailData: any) {
+    try {
+      console.log("📤 Envoi de l'email avec pièces jointes :", emailData);
 
-// Interface pour les données d'email à sauvegarder
-export interface EmailData {
-  from: string;
-  to: string[];
-  cc: string[];
-  bcc: string[];
-  subject: string;
-  body: string;
-  folder: string;
-  isRead: boolean;
-  isStarred: boolean;
-  isImportant: boolean;
-  sentAt: string;
-  user: string | number;
-  attachments?: EmailAttachment[];
-  hasExternalRecipients?: boolean;
-  externalRecipients?: string[];
-  internalRecipients?: string[];
-  deliveryStatus?: 'pending' | 'delivered' | 'failed' | 'mixed';
-}
+      // 1️⃣ Upload des fichiers s’il y en a
+      let uploadedAttachments: any[] = [];
 
-// Interface pour l'utilisateur stocké en localStorage
-export interface StoredUser {
-  id: string | number;
-  documentId?: string;
-  username?: string;
-  email?: string;
-  [key: string]: any;
-}
+      if (emailData.attachments && emailData.attachments.length > 0) {
+        const formData = new FormData();
+        emailData.attachments.forEach((file: File) => {
+          formData.append("files", file);
+        });
 
-// Interface pour les utilisateurs retournés par l'API
-export interface UserResponse {
-  id: string | number;
-  documentId?: string;
-  username: string;
-  email: string;
-  [key: string]: any;
-}
+        const uploadResponse = await axios.post(`${API_URL}/upload`, formData);
+        uploadedAttachments = uploadResponse.data;
+        console.log("✅ Fichiers uploadés :", uploadedAttachments);
+      }
 
-// Interface pour un item Strapi générique
-export interface StrapiItem {
-  id: string | number;
-  attributes: any;
-  documentId?: string;
-}
+      // 2️⃣ Création du mail dans “envoyés”
+      const sentPayload = {
+        data: {
+          from: "me@exemple.com", // tu peux remplacer par user.email si dispo
+          to: emailData.to,
+          cc: emailData.cc || [],
+          bcc: emailData.bcc || [],
+          subject: emailData.subject,
+          body: emailData.body,
+          folder: "sent",
+          attachments: uploadedAttachments.map((a) => a.id), // ✅ On lie les pièces
+          isStarred: false,
+          isRead: true,
+          sentAt: new Date().toISOString(),
+        },
+      };
 
-// Types de réponse API pour les utilisateurs
-export type UsersApiResponse =
-  | UserResponse[]
-  | { data: StrapiItem[] }
-  | { users: UserResponse[] }
-  | StrapiItem[];
+      const sentResponse = await axios.post(`${API_URL}/emails`, sentPayload);
+      console.log("📨 Mail envoyé dans 'Envoyés' :", sentResponse.data);
 
-// Interface pour les données d'email
-export interface EmailData {
-  from: string;
-  to: string[];
-  cc?: string[];
-  bcc?: string[];
-  subject: string;
-  body: string;
-  folder: string;
-  isRead: boolean;
-  isStarred: boolean;
-  isImportant: boolean;
-  sentAt: string;
-  user: string | number;
-  // Nouveaux champs pour la gestion externe
-  hasExternalRecipients?: boolean;
-  externalRecipients?: string[];
-  internalRecipients?: string[];
-  deliveryStatus?: "pending" | "delivered" | "failed" | "mixed";
-  deliveredAt?: string;
-}
+      // 3️⃣ Duplication dans “inbox” du destinataire
+      const inboxPayload = {
+        data: {
+          from: "me@exemple.com",
+          to: emailData.to,
+          subject: emailData.subject,
+          body: emailData.body,
+          folder: "inbox",
+          attachments: uploadedAttachments.map((a) => a.id), // ✅ Copie des fichiers ici aussi
+          isStarred: false,
+          isRead: false,
+          sentAt: new Date().toISOString(),
+        },
+      };
 
-// Interface pour les statistiques d'envoi
-export interface EmailStats {
-  totalSent: number;
-  internalSent: number;
-  externalSent: number;
-  failed: number;
-  delivered: number;
-  pending: number;
-}
+      const inboxResponse = await axios.post(`${API_URL}/emails`, inboxPayload);
+      console.log("📥 Copie du mail dans 'Inbox' :", inboxResponse.data);
 
-// Interface pour la configuration EmailJS
-export interface EmailJSConfig {
-  isEnabled: boolean;
-  hasValidConfig: boolean;
-  serviceId: string | null;
-  templateId: string | null;
-}
+      return {
+        sent: sentResponse.data,
+        inbox: inboxResponse.data,
+      };
+    } catch (error) {
+      console.error("❌ Erreur lors de l'envoi de l'email :", error);
+      throw error;
+    }
+  },
+
+  async saveDraft(draftData: any) {
+    const payload = {
+      data: {
+        ...draftData,
+        folder: "draft",
+      },
+    };
+    const res = await axios.post(`${API_URL}/emails`, payload);
+    return res.data;
+  },
+
+  async toggleStar(id: string, isStarred: boolean) {
+    const res = await axios.put(`${API_URL}/emails/${id}`, {
+      data: { isStarred },
+    });
+    return res.data;
+  },
+
+  async moveToFolder(id: string, targetFolder: string) {
+    const res = await axios.put(`${API_URL}/emails/${id}`, {
+      data: { folder: targetFolder },
+    });
+    return res.data;
+  },
+
+  async deleteEmail(id: string) {
+    await axios.delete(`${API_URL}/emails/${id}`);
+  },
+
+  async markAsRead(id: string) {
+    await axios.put(`${API_URL}/emails/${id}`, { data: { isRead: true } });
+  },
+};

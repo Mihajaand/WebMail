@@ -4,33 +4,37 @@ import type { ApiResponse, EmailData, EmailStats } from "../types/emailService";
 import type { Email } from "../types/email";
 
 export class EmailCrudService extends ApiClient {
-  async getEmails(
-    folder: string = "inbox",
-    page: number = 1,
-    includeAttachments: boolean = true,
-  ): Promise<ApiResponse<Email[]>> {
-    const user = this.getStoredUser();
+ async getEmails(
+  folder: string = "inbox",
+  page: number = 1,
+  includeAttachments: boolean = true,
+): Promise<ApiResponse<Email[]>> {
+  const user = this.getStoredUser();
 
-    console.log("🔍 DEBUG - Getting emails:", {
-      folder,
-      page,
-      user,
-      userId: user.id,
-      userDocumentId: user.documentId,
-      includeAttachments,
-    });
+  console.log("🔍 DEBUG - Getting emails:", {
+    folder,
+    page,
+    userId: user.id,
+    includeAttachments,
+  });
 
-    const finalFilters = `filters[folder][$eq]=${folder}&filters[user][id][$eq]=${user.id}`;
-    const populateQuery = includeAttachments ? 'populate[0]=attachments&populate[1]=user' : 'populate=user';
-    console.log(`🧪 Requête avec filtres: ${finalFilters}`);
+  const finalFilters = `filters[folder][$eq]=${folder}&filters[user][id][$eq]=${user.id}`;
+  const populateQuery = includeAttachments ? 'populate=*' : 'populate=user';
+  
+  const url = `/emails?${finalFilters}&sort=sentAt:desc&pagination[page]=${page}&pagination[pageSize]=20&${populateQuery}`;
+  console.log(`🌐 URL complète: ${url}`);
 
-    const finalResponse = await this.fetchApi<ApiResponse<Email[]>>(
-      `/emails?${finalFilters}&sort=sentAt:desc&pagination[page]=${page}&pagination[pageSize]=20&${populateQuery}`,
-    );
+  const finalResponse = await this.fetchApi<ApiResponse<Email[]>>(url);
 
-    console.log("🎯 Réponse finale:", finalResponse);
-    return finalResponse;
+  // ✅ LOG CRITIQUE : Voir exactement ce que Strapi renvoie
+  console.log("🎯 Réponse brute de Strapi:", JSON.stringify(finalResponse, null, 2));
+  
+  if (finalResponse.data && finalResponse.data[0]) {
+    console.log("📎 Premier email - attachments brut:", finalResponse.data[0].attributes?.attachments);
   }
+
+  return finalResponse;
+}
 
   async getEmail(id: string): Promise<ApiResponse<Email>> {
     return this.fetchApi<ApiResponse<Email>>(`/emails/${id}?populate[0]=attachments&populate[1]=user`);

@@ -11,7 +11,7 @@ import type {
   ApiResponse,
   EmailStats,
   EmailJSConfig,
-} from "../types/emailService";
+} from ".";
 import type { Email, CustomFolder } from "../types/email";
 
 /**
@@ -21,13 +21,11 @@ import type { Email, CustomFolder } from "../types/email";
 class EmailService {
   // ===== OPÉRATIONS CRUD =====
 
-  async getEmails(
-    folder: string = "inbox",
-    page: number = 1,
-  ): Promise<ApiResponse<Email[]>> {
-    // Ajouter le paramètre populate pour inclure les pièces jointes
-    return emailCrudService.getEmails(folder, page, true);
-  }
+ async getEmails(folder: string = "inbox", page: number = 1): Promise<ApiResponse<Email[]>> {
+  // Le emailCrudService.getEmails gère déjà populate et page
+  return emailCrudService.getEmails(folder, page, true); // true = populate attachments
+}
+
 
   async getEmail(id: string): Promise<ApiResponse<Email>> {
     return emailCrudService.getEmail(id);

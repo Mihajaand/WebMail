@@ -62,11 +62,14 @@ export const useEmails = (folder: string = "inbox") => {
                     return {
                       id: String(item.id),
                       ...item.attributes,
+                      attachments: item.attributes.attachments ?? [], // <-- important
+
                     };
                   } else {
                     return {
                       id: String(item.id || item._id),
                       ...item,
+                      attachments: item.attachments ?? [], // <-- important
                     };
                   }
                 });
@@ -111,38 +114,26 @@ export const useEmails = (folder: string = "inbox") => {
           }
 
           // Convertir les objets Strapi { id, attributes } en Email
-          allEmails = response.data.map((item: any) => {
-            console.log("Processing item for folder", folder, ":", item);
+        allEmails = response.data.map((item: any) => {
+  let email: Email;
 
-            let email: Email;
+  if (item.attributes) {
+    email = {
+      id: String(item.id),
+      ...item.attributes,
+      attachments: item.attributes.attachments ?? [], // <-- important
+    };
+  } else {
+    email = {
+      id: String(item.id || item._id),
+      ...item,
+      attachments: item.attachments ?? [], // <-- important
+    };
+  }
 
-            // Si c'est la structure Strapi classique
-            if (item.attributes) {
-              console.log(
-                "Using Strapi structure, attributes:",
-                item.attributes,
-              );
-              email = {
-                id: String(item.id),
-                ...item.attributes,
-              };
-            }
-            // Si c'est une structure directe
-            else {
-              console.log("Using direct structure");
-              email = {
-                id: String(item.id || item._id),
-                ...item,
-              };
-            }
+  return email;
+});
 
-            // Validation : Vérifier que l'email a les bonnes propriétés
-            if (!email.from || !email.subject || !email.sentAt) {
-              console.warn("⚠️ Email incomplet:", email);
-            }
-
-            return email;
-          });
         }
 
         console.log(

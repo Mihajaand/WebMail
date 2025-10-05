@@ -1,4 +1,4 @@
-// types/email.ts - Types améliorés
+// types/email.ts – version 100 % compatible avec Strapi et les fichiers joints
 export interface Email {
   id: string;
   from: string;
@@ -13,16 +13,17 @@ export interface Email {
   isImportant: boolean;
   sentAt: string;
 
+  // ✅ On garantit toujours un tableau (même vide) → évite les erreurs "undefined.attachments"
+  attachments: EmailAttachment[];
+
   // Nouveaux champs pour la gestion externe
   hasExternalRecipients?: boolean;
   externalRecipients?: string[];
   internalRecipients?: string[];
   deliveryStatus?: "pending" | "delivered" | "failed" | "mixed";
-  attachments?: EmailAttachment[];
   deliveredAt?: string;
 
   // Métadonnées
-  attachments?: EmailAttachment[];
   messageId?: string;
   replyTo?: string;
 
