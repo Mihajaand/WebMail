@@ -107,10 +107,7 @@ export const useEmails = (folder: string = "inbox") => {
 
           if (response.data && response.data[0]) {
             console.log("Premier item brut:", response.data[0]);
-            console.log(
-              "Attributes du premier item:",
-              response.data[0].attributes,
-            );
+            console.log("Premier item JSON:", JSON.stringify(response.data[0]));
           }
 
           // Convertir les objets Strapi { id, attributes } en Email
@@ -364,6 +361,29 @@ export const useEmails = (folder: string = "inbox") => {
       }));
     }
   }, []);
+const markAsRead = useCallback(
+  async (id: string) => {
+    try {
+      const email = state.emails.find((e) => e.id === id);
+      if (!email || email.isRead) return;
+
+      // Mise à jour optimiste
+      setState((prev) => ({
+        ...prev,
+        emails: prev.emails.map((e) =>
+          e.id === id ? { ...e, isRead: true } : e
+        ),
+      }));
+
+      // Mettre à jour le backend
+      await emailService.markAsRead(id); // tu peux créer cette méthode dans emailService
+      console.log(`✅ Email ${id} marked as read in backend`);
+    } catch (error) {
+      console.error("❌ Failed to mark email as read:", error);
+    }
+  },
+  [state.emails]
+);
 
   const loadMore = useCallback(() => {
     if (!state.loading && state.hasMore) {
@@ -403,5 +423,6 @@ export const useEmails = (folder: string = "inbox") => {
     deleteEmail,
     loadMore,
     refresh,
+    markAsRead,
   };
 };

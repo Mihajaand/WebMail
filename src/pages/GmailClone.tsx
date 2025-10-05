@@ -57,6 +57,7 @@ const GmailClone = ({ user }: GmailCloneProps) => {
     toggleStar,
     moveToFolder,
     refresh,
+    markAsRead,
   } = useEmails(folderForHook);
 
   // Logique de filtrage des emails améliorée
@@ -225,30 +226,33 @@ const GmailClone = ({ user }: GmailCloneProps) => {
     setShowEmailList(true);
   };
 
-  const handleEmailSelect = (email: Email) => {
-    console.log("📖 Opening email:", email);
+  const handleEmailSelect = async (email: Email) => {
+  console.log("📖 Opening email:", email);
 
-    // Si c'est un brouillon, l'ouvrir en mode édition
-    if (email.folder === "draft") {
-      console.log("📝 Opening draft for editing:", email);
+  if (email.folder === "draft") {
+    const draftData: DraftData = {
+  id: email.id,
+  to: Array.isArray(email.to) ? email.to : [email.to].filter(Boolean),
+  cc: Array.isArray(email.cc) ? email.cc : email.cc ? [email.cc] : [],
+  bcc: Array.isArray(email.bcc) ? email.bcc : email.bcc ? [email.bcc] : [],
+  subject: email.subject || "",
+  body: email.body || "",
+};
 
-      const draftData: DraftData = {
-        id: email.id,
-        to: email.to || [],
-        cc: email.cc || [],
-        bcc: email.bcc || [],
-        subject: email.subject || "",
-        body: email.body || "",
-      };
+    setDraftToEdit(draftData);
+    setShowCompose(true);
+    return;
+  }
 
-      setDraftToEdit(draftData);
-      setShowCompose(true);
-    } else {
-      // Email normal, l'ouvrir en lecture
-      setSelectedEmail(email);
-      setShowEmailList(false);
-    }
-  };
+  // Marquer comme lu
+  if (!email.isRead) {
+    await markAsRead(email.id);
+  }
+
+  setSelectedEmail({ ...email, isRead: true });
+  setShowEmailList(false);
+};
+
 
   const handleNewCompose = () => {
     setDraftToEdit(null); // Reset draft data pour un nouveau message

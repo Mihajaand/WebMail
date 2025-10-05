@@ -182,7 +182,7 @@ const EmailList = ({
               } ${!email.isRead ? "bg-blue-25" : ""}`}
             >
               <div className="flex items-start space-x-3">
-                <input
+                {/* <input
                   type="checkbox"
                   checked={selectedEmails.includes(email.id)}
                   onChange={(e) => {
@@ -190,7 +190,7 @@ const EmailList = ({
                     onEmailToggleSelect(email.id);
                   }}
                   className="mt-1 rounded"
-                />
+                /> */}
                 <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-purple-500 to-pink-600 text-sm font-semibold text-white">
                   {getInitial(email.from)}
                 </div>
