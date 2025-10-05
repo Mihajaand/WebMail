@@ -10,19 +10,20 @@ const EMAILJS_CONFIG = {
 
 // Interface pour les données d'email externe
 interface ExternalEmailData {
-  from: string; // L'utilisateur interne (volatiana@eni.mg)
-  to: string; // L'email externe (mihajamahefaandy@gmail.com)
+  from: string; // L'utilisateur interne (ex: volatiana@eni.mg)
+  to: string; // L'email externe (ex: mihajamahefaandy@gmail.com)
   subject: string;
   body: string;
   cc?: string[];
   bcc?: string[];
+  attachments?: File[];
 }
 
 class EmailJSService {
   private isInitialized = false;
 
   // Initialiser EmailJS
-  init() {
+  private init() {
     if (!this.isInitialized) {
       emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
       this.isInitialized = true;
@@ -51,52 +52,28 @@ class EmailJSService {
     return { internal, external };
   }
 
-  // Envoyer un email externe via EmailJS
-  async sendExternalEmail(emailData: ExternalEmailData): Promise<boolean> {
-    try {
-      this.init();
+  // Générer le HTML des pièces jointes
+  private generateAttachmentsHtml(attachments?: File[]): string {
+    if (!attachments || attachments.length === 0) return "";
 
-      console.log("📤 Envoi email externe via EmailJS:", emailData);
+    const attachmentItems = attachments
+      .map(
+        (file) => `
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center;">
+          <span style="margin-right: 10px; font-size: 36px;">⬇️</span>
+          <span style="margin-top: 15px">${file.name}</span>
+          <span style="color: #64748b; margin-left: 8px; font-size: 12px;">(${Math.round(file.size / 1024)}KB)</span>
+        </div>
+      `
+      )
+      .join("");
 
-      // Template parameters pour EmailJS
-      const templateParams = {
-        // Email de service comme expéditeur technique
-        from_email: "eni.service.reply@gmail.com",
-        from_name: "ENI Service Mail",
-
-        // Email du vrai expéditeur dans l'objet
-        real_sender: emailData.from,
-        original_subject: emailData.subject,
-
-        // Destinataire externe
-        to_email: emailData.to,
-
-        // Objet modifié avec l'expéditeur réel
-        subject: `[De: ${emailData.from}] ${emailData.subject}`,
-
-        // Corps du message avec signature
-        message: this.formatExternalMessage(emailData),
-
-        // Métadonnées
-        cc_list: emailData.cc?.join(", ") || "",
-        bcc_list: emailData.bcc?.join(", ") || "",
-      };
-
-      console.log("📦 Template params:", templateParams);
-
-      // Envoyer via EmailJS
-      const result = await emailjs.send(
-        EMAILJS_CONFIG.SERVICE_ID,
-        EMAILJS_CONFIG.TEMPLATE_ID,
-        templateParams,
-      );
-
-      console.log("✅ Email externe envoyé:", result);
-      return result.status === 200;
-    } catch (error) {
-      console.error("❌ Erreur envoi email externe:", error);
-      return false;
-    }
+    return `
+      <div style="margin-top: 25px; padding-top: 20px; border-top: 2px solid #e2e8f0;">
+        <h3 style="font-size: 16px; font-weight: 600; color: #1e293b; margin-bottom: 12px;">📎 Pièces jointes :</h3>
+        ${attachmentItems}
+      </div>
+    `;
   }
 
   // Formater le message pour les emails externes
@@ -113,6 +90,55 @@ ENI - École Nationale d'Informatique
     `.trim();
   }
 
+  // Envoyer un email externe via EmailJS
+  async sendExternalEmail(emailData: ExternalEmailData): Promise<boolean> {
+    try {
+      this.init();
+
+      console.log("📤 Envoi email externe via EmailJS:", emailData);
+
+      // Template parameters pour EmailJS
+      const templateParams = {
+        // Expéditeur technique
+        from_email: "eni.service.reply@gmail.com",
+        from_name: "ENI Service Mail",
+
+        // Expéditeur réel
+        real_sender: emailData.from,
+        original_subject: emailData.subject,
+
+        // Destinataire externe
+        to_email: emailData.to,
+
+        // Objet modifié
+        subject: `[De: ${emailData.from}] ${emailData.subject}`,
+
+        // Corps du message + pièces jointes
+        message: this.formatExternalMessage(emailData),
+        attachments_html: this.generateAttachmentsHtml(emailData.attachments),
+
+        // CC / BCC
+        cc_list: emailData.cc?.join(", ") || "",
+        bcc_list: emailData.bcc?.join(", ") || "",
+      };
+
+      console.log("📦 Template params:", templateParams);
+
+      // Envoi via EmailJS
+      const result = await emailjs.send(
+        EMAILJS_CONFIG.SERVICE_ID,
+        EMAILJS_CONFIG.TEMPLATE_ID,
+        templateParams
+      );
+
+      console.log("✅ Email externe envoyé:", result);
+      return result.status === 200;
+    } catch (error) {
+      console.error("❌ Erreur envoi email externe:", error);
+      return false;
+    }
+  }
+
   // Envoyer plusieurs emails externes
   async sendMultipleExternalEmails(
     from: string,
@@ -120,7 +146,7 @@ ENI - École Nationale d'Informatique
     subject: string,
     body: string,
     cc?: string[],
-    bcc?: string[],
+    bcc?: string[]
   ): Promise<{ success: number; failed: number }> {
     let success = 0;
     let failed = 0;
@@ -128,39 +154,25 @@ ENI - École Nationale d'Informatique
     console.log(`📬 Envoi de ${recipients.length} emails externes`);
 
     for (const recipient of recipients) {
-      const emailData: ExternalEmailData = {
-        from,
-        to: recipient,
-        subject,
-        body,
-        cc,
-        bcc,
-      };
-
+      const emailData: ExternalEmailData = { from, to: recipient, subject, body, cc, bcc };
       const sent = await this.sendExternalEmail(emailData);
-      if (sent) {
-        success++;
-      } else {
-        failed++;
-      }
+      sent ? success++ : failed++;
 
-      // Délai entre les envois pour éviter le spam
+      // Délai entre les envois
       if (recipients.length > 1) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
-    console.log(
-      `📊 Résultats envoi externe: ${success} succès, ${failed} échecs`,
-    );
+    console.log(`📊 Résultats envoi externe: ${success} succès, ${failed} échecs`);
     return { success, failed };
   }
 
-  // Créer un email de notification pour les échecs d'envoi externe
+  // Créer un email de notification d'échec
   createFailureNotification(
     originalSender: string,
     failedRecipients: string[],
-    originalSubject: string,
+    originalSubject: string
   ) {
     return {
       to: [originalSender],

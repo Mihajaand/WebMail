@@ -245,26 +245,41 @@ export class EmailSendingService extends ApiClient {
       );
 
       // Envoyer aux destinataires principaux externes
-      let totalSuccess = 0;
-      let totalFailed = 0;
+let totalSuccess = 0;
+let totalFailed = 0;
 
-      if (externalTo.length > 0) {
-        const result = await emailjsService.sendMultipleExternalEmails(
-          user.email || `${user.username}@eni.mg`,
-          externalTo,
-          emailData.subject,
-          emailData.body,
-          externalCc,
-          externalBcc,
-        );
+if (externalTo.length > 0) {
+  console.log(`📬 Envoi vers ${externalTo.length} destinataires externes`);
+  
+  // Envoyer un email séparé pour chaque destinataire externe
+  for (const recipient of externalTo) {
+    const externalEmailData = {
+      from: user.email || `${user.username}@eni.mg`,
+      to: recipient,
+      subject: emailData.subject,
+      body: emailData.body,
+      cc: externalCc,
+      bcc: externalBcc,
+      attachments: emailData.attachments, // 🎯 Les pièces jointes sont passées ici
+    };
 
-        totalSuccess += result.success;
-        totalFailed += result.failed;
+    const sent = await emailjsService.sendExternalEmail(externalEmailData);
+    if (sent) {
+      totalSuccess++;
+    } else {
+      totalFailed++;
+    }
 
-        console.log(
-          `📊 Résultat envoi externe TO: ${result.success}/${externalTo.length} succès`,
-        );
-      }
+    // Délai entre les envois pour éviter le spam
+    if (externalTo.length > 1 && recipient !== externalTo[externalTo.length - 1]) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+
+  console.log(
+    `📊 Résultat envoi externe TO: ${totalSuccess}/${externalTo.length} succès`,
+  );
+}
 
       // Mettre à jour le statut de livraison (temporairement désactivé)
       /*

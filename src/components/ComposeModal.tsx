@@ -306,13 +306,12 @@ const ComposeModal = ({
               className="rounded p-2 hover:bg-gray-100"
               disabled={sending || savingDraft}
             >
-              <Paperclip className="h-5 w-5" />
             </button>
           </div>
           <div className="flex items-center space-x-2">
             <button
               onClick={() => onClose()}
-              className="rounded-md px-4 py-2 text-gray-600 hover:bg-gray-100"
+              className="rounded-md px-4 py-2 text-red-600 hover:bg-red-100 cursor-pointer border-2 border-red-600"
               disabled={sending || savingDraft}
             >
               Annuler
@@ -322,7 +321,7 @@ const ComposeModal = ({
               disabled={
                 savingDraft || (!to.trim() && !subject.trim() && !body.trim())
               }
-              className="flex items-center space-x-2 rounded-md bg-gray-600 px-4 py-2 text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex cursor-pointer items-center space-x-2 rounded-md bg-gray-600 px-4 py-2 text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {savingDraft ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />
@@ -334,7 +333,7 @@ const ComposeModal = ({
             <button
               onClick={handleSend}
               disabled={!isFormValid || sending}
-              className="flex items-center space-x-2 rounded-md bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex cursor-pointer items-center space-x-2 rounded-md bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {sending ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />
