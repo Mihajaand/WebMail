@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import type { Email } from "../types/email";
 import logoEni from "./../assets/logo/eni.jpg";
+import { useNavigate } from "react-router-dom";
+
 interface SidebarProps {
   user: {
     username: string;
@@ -70,7 +72,7 @@ const Sidebar = ({
 
   const getInitial = (str?: string) =>
     str && str.length > 0 ? str.charAt(0).toUpperCase() : "U";
-
+const navigate = useNavigate();
   return (
     <div
       className={`${showEmailList ? "hidden md:flex" : "flex"} w-64 flex-col border-r bg-white`}
@@ -125,7 +127,7 @@ const Sidebar = ({
             </div>
             <div className="text-xs text-gray-600">{user.email}</div>
           </div>
-          <button className="rounded p-1 hover:bg-gray-100">
+          <button className="rounded p-1 hover:bg-gray-100" onClick={() => navigate('/profiles')} title="Paramètres du compte">
             <Settings className="h-4 w-4 cursor-pointer" />
           </button>
           <button
@@ -140,7 +142,9 @@ const Sidebar = ({
           onClick={() => {
             localStorage.removeItem("user");
             localStorage.removeItem("jwt");
-            window.location.reload();
+            // window.location.reload();
+            navigate("/login");
+            
           }}
           className="mt-2 w-full cursor-pointer rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700"
         >
