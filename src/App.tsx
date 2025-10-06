@@ -25,7 +25,8 @@ export default function App() {
           path="/"
           element={user ? <GmailClone user={user} /> : <Navigate to="/login" />}
         />
-        <Route path="/support" element={<Support />} />
+        <Route path="/support" element={<Support onBack={() => {}} />} />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </div>
   );
