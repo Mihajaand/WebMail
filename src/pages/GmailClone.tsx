@@ -7,6 +7,7 @@ import EmailList from "../components/EmailList";
 import EmailViewer from "../components/EmailViewer";
 import ComposeModal from "../components/ComposeModal";
 import EmailDiagnostic from "../components/EmailDiagnostic";
+import Support from "./../pages/Support";
 
 // Types locaux pour éviter les erreurs d'import
 interface ComposeEmailData {
@@ -39,7 +40,7 @@ const GmailClone = ({ user }: GmailCloneProps) => {
   const [showEmailList, setShowEmailList] = useState(true);
   const [showDiagnostic, setShowDiagnostic] = useState(false);
   const [draftToEdit, setDraftToEdit] = useState<DraftData | null>(null);
-
+  const [showSupport, setShowSupport] = useState(false);
   // Pour les messages suivis, on utilise le dossier inbox par défaut
   // Pour les brouillons, on mappe "drafts" vers "draft" pour l'API
   const folderForHook =
@@ -297,123 +298,134 @@ const GmailClone = ({ user }: GmailCloneProps) => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <Sidebar
-        user={user}
-        currentFolder={currentFolder}
-        rawEmails={rawEmails}
-        getEmailCount={getEmailCount}
-        showEmailList={showEmailList}
-        onFolderChange={handleFolderChange}
-        onShowCompose={handleNewCompose}
-        onShowDiagnostic={() => setShowDiagnostic(true)}
+  <div className="flex h-screen bg-gray-50">
+    {/* Support Page */}
+    {showSupport ? (
+      <Support 
+        onBack={() => setShowSupport(false)} 
+        userEmail={user.email}
       />
-
-      {/* Email List */}
-      <EmailList
-        currentFolder={currentFolder}
-        currentEmails={currentEmails}
-        selectedEmail={selectedEmail}
-        selectedEmails={selectedEmails}
-        searchQuery={searchQuery}
-        loading={loading}
-        error={error}
-        showEmailList={showEmailList}
-        rawEmails={rawEmails}
-        onSearchChange={setSearchQuery}
-        onEmailSelect={handleEmailSelect}
-        onEmailToggleSelect={toggleEmailSelection}
-        onToggleStar={toggleStar}
-        onRefresh={refresh}
-        getEmailCount={getEmailCount}
-      />
-
-      {/* Email Content */}
-      {selectedEmail ? (
-        <EmailViewer
-          email={selectedEmail}
-          onClose={() => setSelectedEmail(null)}
-          onToggleStar={(id) => toggleStar(String(id))}
-          onMoveToFolder={async (id, folder) => {
-            try {
-              console.log(
-                `🗑️ Tentative de déplacement de l'email ${id} vers ${folder}...`,
-              );
-              await moveToFolder(String(id), folder);
-              console.log("✅ Déplacement réussi");
-
-              if (folder === "trash") {
-                console.log("📤 Email déplacé vers la corbeille");
-                // Mettre à jour l'interface après confirmation du backend
-                setSelectedEmail(null);
-                setShowEmailList(true);
-
-                // Forcer un rafraîchissement pour mettre à jour les listes d'emails
-                if (currentFolder === "trash") {
-                  // Si on est dans la corbeille, recharger la corbeille
-                  setCurrentFolder("trash");
-                  refresh();
-                } else {
-                  // Sinon, juste rafraîchir la vue actuelle
-                  refresh();
-                }
-              }
-            } catch (error) {
-              console.error(
-                "❌ Erreur lors du déplacement vers la corbeille:",
-                error,
-              );
-              // Afficher une erreur à l'utilisateur si nécessaire
-            }
-          }}
-          onReply={handleReply}
-          onForward={handleForward}
+    ) : (
+      <>
+        {/* Sidebar */}
+        <Sidebar
+          user={user}
+          currentFolder={currentFolder}
+          rawEmails={rawEmails}
+          getEmailCount={getEmailCount}
+          showEmailList={showEmailList}
+          onFolderChange={handleFolderChange}
+          onShowCompose={handleNewCompose}
+          onShowDiagnostic={() => setShowDiagnostic(true)}
         />
-      ) : (
-        <div className="flex flex-1 items-center justify-center bg-gray-50">
-          <div className="text-center text-gray-500">
-            <Mail className="mx-auto mb-4 h-16 w-16 text-gray-300" />
-            <h3 className="mb-2 text-lg font-medium">Webmail ENI</h3>
-            <p>
-              {currentFolder === "drafts"
-                ? "Sélectionnez un brouillon pour le modifier"
-                : "Sélectionnez un email pour le lire"}
-            </p>
-            {currentFolder === "drafts" && (
-              <p className="mt-2 text-sm text-gray-400">
-                Les brouillons s'ouvrent en mode édition
-              </p>
-            )}
-            <div className="mt-4 text-xs text-gray-400">
+
+        {/* Email List */}
+        <EmailList
+          currentFolder={currentFolder}
+          currentEmails={currentEmails}
+          selectedEmail={selectedEmail}
+          selectedEmails={selectedEmails}
+          searchQuery={searchQuery}
+          loading={loading}
+          error={error}
+          showEmailList={showEmailList}
+          rawEmails={rawEmails}
+          onSearchChange={setSearchQuery}
+          onEmailSelect={handleEmailSelect}
+          onEmailToggleSelect={toggleEmailSelection}
+          onToggleStar={toggleStar}
+          onRefresh={refresh}
+          getEmailCount={getEmailCount}
+        />
+
+        {/* Email Content */}
+        {selectedEmail ? (
+          <EmailViewer
+            email={selectedEmail}
+            onClose={() => setSelectedEmail(null)}
+            onToggleStar={(id) => toggleStar(String(id))}
+            onMoveToFolder={async (id, folder) => {
+              try {
+                console.log(
+                  `🗑️ Tentative de déplacement de l'email ${id} vers ${folder}...`,
+                );
+                await moveToFolder(String(id), folder);
+                console.log("✅ Déplacement réussi");
+
+                if (folder === "trash") {
+                  console.log("📤 Email déplacé vers la corbeille");
+                  // Mettre à jour l'interface après confirmation du backend
+                  setSelectedEmail(null);
+                  setShowEmailList(true);
+
+                  // Forcer un rafraîchissement pour mettre à jour les listes d'emails
+                  if (currentFolder === "trash") {
+                    // Si on est dans la corbeille, recharger la corbeille
+                    setCurrentFolder("trash");
+                    refresh();
+                  } else {
+                    // Sinon, juste rafraîchir la vue actuelle
+                    refresh();
+                  }
+                }
+              } catch (error) {
+                console.error(
+                  "❌ Erreur lors du déplacement vers la corbeille:",
+                  error,
+                );
+                // Afficher une erreur à l'utilisateur si nécessaire
+              }
+            }}
+            onReply={handleReply}
+            onForward={handleForward}
+            onShowSupport={() => setShowSupport(true)}
+          />
+        ) : (
+          <div className="flex flex-1 items-center justify-center bg-gray-50">
+            <div className="text-center text-gray-500">
+              <Mail className="mx-auto mb-4 h-16 w-16 text-gray-300" />
+              <h3 className="mb-2 text-lg font-medium">Webmail ENI</h3>
               <p>
-                👤 Utilisateur: {user.username} ({user.email})
+                {currentFolder === "drafts"
+                  ? "Sélectionnez un brouillon pour le modifier"
+                  : "Sélectionnez un email pour le lire"}
               </p>
-              <p>📁 Dossier Actif: {currentFolder}</p>
-              <p>📊 {rawEmails.length} emails au total</p>
+              {currentFolder === "drafts" && (
+                <p className="mt-2 text-sm text-gray-400">
+                  Les brouillons s'ouvrent en mode édition
+                </p>
+              )}
+              <div className="mt-4 text-xs text-gray-400">
+                <p>
+                  👤 Utilisateur: {user.username} ({user.email})
+                </p>
+                <p>📁 Dossier Actif: {currentFolder}</p>
+                <p>📊 {rawEmails.length} emails au total</p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Compose Modal */}
-      {showCompose && (
-        <ComposeModal
-          onClose={handleCloseCompose}
-          onSend={handleSendEmail}
-          onSaveDraft={handleSaveDraft}
-          draftData={draftToEdit}
+        {/* Compose Modal */}
+        {showCompose && (
+          <ComposeModal
+            onClose={handleCloseCompose}
+            onSend={handleSendEmail}
+            onSaveDraft={handleSaveDraft}
+            draftData={draftToEdit}
+          />
+        )}
+
+        {/* Email Diagnostic */}
+        <EmailDiagnostic
+          showDiagnostic={showDiagnostic}
+          onClose={() => setShowDiagnostic(false)}
+          onRefresh={refresh}
         />
-      )}
-
-      {/* Email Diagnostic */}
-      <EmailDiagnostic
-        showDiagnostic={showDiagnostic}
-        onClose={() => setShowDiagnostic(false)}
-        onRefresh={refresh}
-      />
-    </div>
-  );
+      </>
+    )}
+  </div>
+);
 };
 
 export default GmailClone;

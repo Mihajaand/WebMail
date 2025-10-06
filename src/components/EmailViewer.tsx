@@ -21,6 +21,7 @@ interface EmailViewerProps {
   onMoveToFolder: (id: string | number, folder: string) => Promise<void>;
   onReply?: (emailData: { to: string; subject: string; body: string }) => void;
   onForward?: (emailData: { subject: string; body: string; attachments?: any[] }) => void;
+   onShowSupport?: () => void;
 }
 
 const EmailViewer = ({
@@ -30,6 +31,7 @@ const EmailViewer = ({
   onMoveToFolder,
   onReply,
   onForward,
+  onShowSupport, 
 }: EmailViewerProps) => {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -101,32 +103,40 @@ const EmailViewer = ({
               className={`rounded p-2 hover:bg-gray-100 ${
                 email.isStarred ? "text-yellow-500" : ""
               }`}
+              title={email.isStarred ? "Retirer l'étoile" : "Ajouter une étoile"}
             >
               <Star
                 className={`h-5 w-5 ${email.isStarred ? "fill-current" : ""}`}
               />
             </button>
             <button
-              className="rounded p-2 hover:bg-gray-100"
+              className="rounded cursor-pointer p-2 hover:bg-gray-100"
               onClick={() => onMoveToFolder(email.id, "archive")}
+              title="Archiver l'email"
+
             >
               <Archive className="h-5 w-5" />
             </button>
             <button
-              className="rounded p-2 hover:bg-gray-100"
+              className="rounded cursor-pointer p-2 hover:bg-gray-100"
               onClick={() => onMoveToFolder(email.id, "trash")}
+              title="Supprimer l'email"
+
             >
               <Trash2 className="h-5 w-5" />
             </button>
              <button
               className="rounded p-2 hover:bg-gray-100"
               onClick={() => onMoveToFolder(email.id, "trash")}
+              title="Marquer comme non lu"
+
             >
               <MailCheck className="h-5 w-5" />
             </button>
               <button
-              className="rounded p-2 hover:bg-gray-100"
-              onClick={() => onMoveToFolder(email.id, "trash")}
+              className="rounded p-2 cursor-pointer hover:bg-gray-100"
+              onClick={() => onShowSupport && onShowSupport()}
+              title="Centre d'aide"
             >
               <HelpCircle className="h-5 w-5" />
             </button>

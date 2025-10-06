@@ -5,6 +5,7 @@ import Login from "./pages/Login";
 import { useEffect, useState } from "react";
 import GmailClone from "./pages/GmailClone";
 import Profiles from "./pages/Profiles";
+import Support from "./pages/Support";
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -24,6 +25,7 @@ export default function App() {
           path="/"
           element={user ? <GmailClone user={user} /> : <Navigate to="/login" />}
         />
+        <Route path="/support" element={<Support />} />
       </Routes>
     </div>
   );
