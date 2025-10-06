@@ -8,7 +8,7 @@ import EmailViewer from "../components/EmailViewer";
 import ComposeModal from "../components/ComposeModal";
 import EmailDiagnostic from "../components/EmailDiagnostic";
 import Support from "./../pages/Support";
-
+import { emailService } from "../services/emailService";
 // Types locaux pour éviter les erreurs d'import
 interface ComposeEmailData {
   to: string[];
@@ -227,6 +227,31 @@ const GmailClone = ({ user }: GmailCloneProps) => {
     setSelectedEmail(null);
     setShowEmailList(true);
   };
+ const markAsUnread = async (id: string | number) => {
+    try {
+      console.log(`📧 Marquage de l'email ${id} comme non lu...`);
+      
+      // Appel direct à l'API emailService avec isRead: false
+      await emailService.markAsRead(String(id), false);
+      
+      console.log("✅ Email marqué comme non lu dans la base de données");
+
+      // Mettre à jour l'état local immédiatement
+      setSelectedEmail(prev =>
+        prev && prev.id === id ? { ...prev, isRead: false } : prev
+      );
+
+      // Rafraîchir la liste pour voir le changement
+      await refresh();
+      
+      console.log("✅ Liste rafraîchie");
+
+    } catch (err) {
+      console.error("❌ Erreur markAsUnread:", err);
+    }
+  };
+
+
 
   const handleEmailSelect = async (email: Email) => {
     console.log("📖 Opening email:", email);
@@ -376,6 +401,7 @@ const GmailClone = ({ user }: GmailCloneProps) => {
                 // Afficher une erreur à l'utilisateur si nécessaire
               }
             }}
+            onMarkAsUnread={markAsUnread}
             onReply={handleReply}
             onForward={handleForward}
             onShowSupport={() => setShowSupport(true)}

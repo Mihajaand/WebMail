@@ -19,6 +19,7 @@ interface EmailViewerProps {
   onClose: () => void;
   onToggleStar: (id: string | number, isStarred: boolean) => Promise<void>;
   onMoveToFolder: (id: string | number, folder: string) => Promise<void>;
+  onMarkAsUnread?: (id: string | number) => Promise<void>;
   onReply?: (emailData: { to: string; subject: string; body: string }) => void;
   onForward?: (emailData: { subject: string; body: string; attachments?: any[] }) => void;
    onShowSupport?: () => void;
@@ -32,6 +33,7 @@ const EmailViewer = ({
   onReply,
   onForward,
   onShowSupport, 
+  onMarkAsUnread,
 }: EmailViewerProps) => {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -125,14 +127,20 @@ const EmailViewer = ({
             >
               <Trash2 className="h-5 w-5" />
             </button>
-             <button
-              className="rounded p-2 hover:bg-gray-100"
-              onClick={() => onMoveToFolder(email.id, "trash")}
-              title="Marquer comme non lu"
+            <button
+  className="rounded p-2 hover:bg-gray-100"
+  onClick={async () => {
+    if (onMarkAsUnread) {
+      await onMarkAsUnread(email.id);
+      window.location.reload();
 
-            >
-              <MailCheck className="h-5 w-5" />
-            </button>
+    }
+  }}
+  title="Marquer comme non lu"
+>
+  <MailCheck className="h-5 w-5" />
+</button>
+
               <button
               className="rounded p-2 cursor-pointer hover:bg-gray-100"
               onClick={() => onShowSupport && onShowSupport()}
