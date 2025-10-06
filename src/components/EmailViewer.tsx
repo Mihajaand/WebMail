@@ -19,6 +19,8 @@ interface EmailViewerProps {
   onClose: () => void;
   onToggleStar: (id: string | number, isStarred: boolean) => Promise<void>;
   onMoveToFolder: (id: string | number, folder: string) => Promise<void>;
+  onReply?: (emailData: { to: string; subject: string; body: string }) => void;
+  onForward?: (emailData: { subject: string; body: string; attachments?: any[] }) => void;
 }
 
 const EmailViewer = ({
@@ -26,6 +28,8 @@ const EmailViewer = ({
   onClose,
   onToggleStar,
   onMoveToFolder,
+  onReply,
+  onForward,
 }: EmailViewerProps) => {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -58,6 +62,26 @@ const EmailViewer = ({
 
   const getInitial = (str?: string) =>
     str && str.length > 0 ? str.charAt(0).toUpperCase() : "U";
+
+  const handleReply = () => {
+    if (onReply) {
+      onReply({
+        to: email.from,
+        subject: email.subject.startsWith("Re: ") ? email.subject : `Re: ${email.subject}`,
+        body: `\n\n--- Message original ---\nDe: ${email.from}\nDate: ${formatDate(email.sentAt)}\nObjet: ${email.subject}\n\n${email.body}`,
+      });
+    }
+  };
+
+  const handleForward = () => {
+    if (onForward) {
+      onForward({
+        subject: email.subject.startsWith("Fwd: ") ? email.subject : `Fwd: ${email.subject}`,
+        body: `\n\n--- Message transféré ---\nDe: ${email.from}\nDate: ${formatDate(email.sentAt)}\nÀ: ${Array.isArray(email.to) ? email.to.join(", ") : email.to}\nObjet: ${email.subject}\n\n${email.body}`,
+        attachments: email.attachments,
+      });
+    }
+  };
 
   return (
     <div className="flex flex-1 flex-col bg-white">
@@ -171,11 +195,17 @@ const EmailViewer = ({
       </div>
 
       <div className="border-t gap-2 border-gray-300 p-[12.9px] flex justify-end items-end">
-  <button className="flex gap-1 cursor-pointer items-center space-x-2 rounded-3xl bg-white px-4 py-2 font-semibold text-gray-600 border-2 border-gray-600 hover:bg-gray-100">
+  <button 
+    onClick={handleReply}
+    className="flex gap-1 cursor-pointer items-center space-x-2 rounded-3xl bg-white px-4 py-2 font-semibold text-gray-600 border-2 border-gray-600 hover:bg-gray-100"
+  >
     <CornerUpLeft className="h-4 w-4" />
     <span>Répondre</span>
   </button>
-  <button className="flex gap-1 cursor-pointer items-center space-x-2 rounded-3xl bg-white px-4 py-2 font-semibold text-gray-600 border-2 border-gray-600 hover:bg-gray-100">
+  <button 
+    onClick={handleForward}
+    className="flex gap-1 cursor-pointer items-center space-x-2 rounded-3xl bg-white px-4 py-2 font-semibold text-gray-600 border-2 border-gray-600 hover:bg-gray-100"
+  >
     <span>Transférer</span>
     <CornerUpRight className="h-4 w-4" />
   </button>

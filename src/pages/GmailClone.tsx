@@ -227,32 +227,31 @@ const GmailClone = ({ user }: GmailCloneProps) => {
   };
 
   const handleEmailSelect = async (email: Email) => {
-  console.log("📖 Opening email:", email);
+    console.log("📖 Opening email:", email);
 
-  if (email.folder === "draft") {
-    const draftData: DraftData = {
-  id: email.id,
-  to: Array.isArray(email.to) ? email.to : [email.to].filter(Boolean),
-  cc: Array.isArray(email.cc) ? email.cc : email.cc ? [email.cc] : [],
-  bcc: Array.isArray(email.bcc) ? email.bcc : email.bcc ? [email.bcc] : [],
-  subject: email.subject || "",
-  body: email.body || "",
-};
+    if (email.folder === "draft") {
+      const draftData: DraftData = {
+        id: email.id,
+        to: Array.isArray(email.to) ? email.to : [email.to].filter(Boolean),
+        cc: Array.isArray(email.cc) ? email.cc : email.cc ? [email.cc] : [],
+        bcc: Array.isArray(email.bcc) ? email.bcc : email.bcc ? [email.bcc] : [],
+        subject: email.subject || "",
+        body: email.body || "",
+      };
 
-    setDraftToEdit(draftData);
-    setShowCompose(true);
-    return;
-  }
+      setDraftToEdit(draftData);
+      setShowCompose(true);
+      return;
+    }
 
-  // Marquer comme lu
-  if (!email.isRead) {
-    await markAsRead(email.id);
-  }
+    // Marquer comme lu
+    if (!email.isRead) {
+      await markAsRead(email.id);
+    }
 
-  setSelectedEmail({ ...email, isRead: true });
-  setShowEmailList(false);
-};
-
+    setSelectedEmail({ ...email, isRead: true });
+    setShowEmailList(false);
+  };
 
   const handleNewCompose = () => {
     setDraftToEdit(null); // Reset draft data pour un nouveau message
@@ -262,6 +261,36 @@ const GmailClone = ({ user }: GmailCloneProps) => {
   const handleCloseCompose = () => {
     setShowCompose(false);
     setDraftToEdit(null); // Reset draft data
+  };
+
+  // Gérer la réponse à un email
+  const handleReply = (emailData: { to: string; subject: string; body: string }) => {
+    console.log("💬 Réponse à l'email:", emailData);
+    
+    setDraftToEdit({
+      to: [emailData.to],
+      subject: emailData.subject,
+      body: emailData.body,
+    });
+    
+    setShowCompose(true);
+    setSelectedEmail(null);
+    setShowEmailList(false);
+  };
+
+  // Gérer le transfert d'un email
+  const handleForward = (emailData: { subject: string; body: string; attachments?: any[] }) => {
+    console.log("➡️ Transfert de l'email:", emailData);
+    
+    setDraftToEdit({
+      to: [],
+      subject: emailData.subject,
+      body: emailData.body,
+    });
+    
+    setShowCompose(true);
+    setSelectedEmail(null);
+    setShowEmailList(false);
   };
 
   return (
@@ -335,6 +364,8 @@ const GmailClone = ({ user }: GmailCloneProps) => {
               // Afficher une erreur à l'utilisateur si nécessaire
             }
           }}
+          onReply={handleReply}
+          onForward={handleForward}
         />
       ) : (
         <div className="flex flex-1 items-center justify-center bg-gray-50">
