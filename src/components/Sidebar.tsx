@@ -7,6 +7,7 @@ import {
   Trash2,
   Settings,
   Bug,
+  LogOut,
 } from "lucide-react";
 import type { Email } from "../types/email";
 import logoEni from "./../assets/logo/eni.jpg";
@@ -85,7 +86,7 @@ const navigate = useNavigate();
       <div className="p-4">
         <button
           onClick={onShowCompose}
-          className="flex w-full cursor-pointer items-center justify-center space-x-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+          className="flex w-full cursor-pointer items-center justify-center space-x-2 rounded-lg  px-4 py-2 text-gray-900 border-2 border-gray-500 hover:bg-gray-100"
         >
           <Plus className="h-4 w-4" />
           <span>Nouveau message</span>
@@ -139,17 +140,17 @@ const navigate = useNavigate();
           </button>
         </div>
         <button
-          onClick={() => {
-            localStorage.removeItem("user");
-            localStorage.removeItem("jwt");
-            // window.location.reload();
-            navigate("/login");
-            
-          }}
-          className="mt-2 w-full cursor-pointer rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700"
-        >
-          Déconnexion
-        </button>
+  onClick={() => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("jwt");
+    navigate("/login");
+  }}
+  className="mt-2 w-full flex items-center justify-center gap-2 cursor-pointer rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700"
+>
+  <LogOut className="h-4 w-4" />
+  <span>Déconnexion</span>
+</button>
+
       </div>
     </div>
   );

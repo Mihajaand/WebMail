@@ -11,9 +11,11 @@ import {
   MailPlus,
   MailCheck,
   HelpCircle,
+  Printer,
 } from "lucide-react";
 import type { Email } from "../types/email";
 import { useEffect, useState } from "react";
+import eni from "./../assets/logo/eni.jpg";
 
 interface EmailViewerProps {
   email: Email;
@@ -101,6 +103,105 @@ useEffect(() => {
       });
     }
   };
+const handlePrint = () => {
+  const printWindow = window.open("", "_blank", "width=900,height=700");
+  if (printWindow) {
+    let attachmentsHtml = "";
+    if (email.attachments.length > 0) {
+      attachmentsHtml = `
+        <h3 style="margin-top:20px; color:#1D4ED8; border-bottom:1px solid #1D4ED8; padding-bottom:4px;">Pièces jointes :</h3>
+        <ul style="padding-left:20px; color:#1F2937;">
+          ${email.attachments
+            .map(
+              (att) =>
+                `<li style="margin-bottom:4px;">${att.name} (${Math.round(
+                  att.size / 1024
+                )} KB)</li>`
+            )
+            .join("")}
+        </ul>
+      `;
+    }
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Impression du message</title>
+          <style>
+            body {
+              font-family: 'Arial', sans-serif;
+              padding: 40px;
+              color: #1F2937;
+              background-color: white;
+              line-height: 1.6;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+            }
+            .header img {
+              height: 80px;
+              margin-bottom: 10px;
+            }
+            .header h1 {
+              margin: 0;
+              font-size: 26px;
+              color: #1D4ED8;
+            }
+            .meta-container {
+              border: 1px solid #E5E7EB;
+              border-radius: 8px;
+              padding: 15px;
+              background-color: #EFF6FF;
+              margin-bottom: 20px;
+            }
+            .meta-container div {
+              margin-bottom: 5px;
+              font-size: 14px;
+            }
+            .body {
+              background-color: #ffffff;
+              padding: 20px;
+              border-radius: 8px;
+              border: 1px solid #E5E7EB;
+              font-size: 15px;
+              white-space: pre-wrap;
+              margin-bottom: 20px;
+            }
+            h3 {
+              font-size: 16px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <img src="${eni}" alt="ENI Logo" />
+            <h1>${email.subject}</h1>
+          </div>
+
+          <div class="meta-container">
+            <div><strong>De :</strong> ${email.from}</div>
+            <div><strong>À :</strong> ${
+              Array.isArray(email.to) ? email.to.join(", ") : email.to
+            }</div>
+            <div><strong>Date :</strong> ${formatDate(email.sentAt)}</div>
+          </div>
+
+          <div class="body">${email.body}</div>
+
+          ${attachmentsHtml}
+
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  }
+};
+
+
 
   return (
     <div className="flex flex-1 flex-col bg-white">
@@ -195,7 +296,13 @@ useEffect(() => {
 </div>
 
             </div>
-            <div className=" w-[100%] flex justify-end">
+            <div className=" w-[100%] flex flex-row justify-end">
+              <button 
+              onClick={handlePrint}
+  title="Imprimer le contenu de l'email"
+               >
+                <Printer className="h-10 w-10 rounded p-2 cursor-pointer hover:bg-gray-100" />
+              </button>
                <button
             
                 className={`rounded p-2  ${
