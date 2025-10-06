@@ -13,6 +13,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import type { Email } from "../types/email";
+import { useEffect, useState } from "react";
 
 interface EmailViewerProps {
   email: Email;
@@ -35,6 +36,20 @@ const EmailViewer = ({
   onShowSupport, 
   onMarkAsUnread,
 }: EmailViewerProps) => {
+  const [showMenu, setShowMenu] = useState(false);
+
+// Ferme le menu quand on clique à l’extérieur
+useEffect(() => {
+  const handleClickOutside = (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (!target.closest(".relative")) {
+      setShowMenu(false);
+    }
+  };
+  document.addEventListener("click", handleClickOutside);
+  return () => document.removeEventListener("click", handleClickOutside);
+}, []);
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -97,60 +112,101 @@ const EmailViewer = ({
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={async () =>
-                await onToggleStar(email.id, email.isStarred)
-              }
-              className={`rounded p-2 hover:bg-gray-100 ${
-                email.isStarred ? "text-yellow-500" : ""
-              }`}
-              title={email.isStarred ? "Retirer l'étoile" : "Ajouter une étoile"}
-            >
-              <Star
-                className={`h-5 w-5 ${email.isStarred ? "fill-current" : ""}`}
-              />
-            </button>
-            <button
-              className="rounded cursor-pointer p-2 hover:bg-gray-100"
-              onClick={() => onMoveToFolder(email.id, "archive")}
-              title="Archiver l'email"
-
-            >
-              <Archive className="h-5 w-5" />
-            </button>
-            <button
-              className="rounded cursor-pointer p-2 hover:bg-gray-100"
-              onClick={() => onMoveToFolder(email.id, "trash")}
-              title="Supprimer l'email"
-
-            >
-              <Trash2 className="h-5 w-5" />
-            </button>
-            <button
-  className="rounded p-2 hover:bg-gray-100"
-  onClick={async () => {
-    if (onMarkAsUnread) {
-      await onMarkAsUnread(email.id);
-      window.location.reload();
-
-    }
-  }}
-  title="Marquer comme non lu"
->
-  <MailCheck className="h-5 w-5" />
-</button>
-
+          <div className="flex flex-row space-between justify-between space-x-2  w-[300%]">
+            <div className="flex items-center space-x-2 ">
+            
               <button
-              className="rounded p-2 cursor-pointer hover:bg-gray-100"
-              onClick={() => onShowSupport && onShowSupport()}
-              title="Centre d'aide"
+                className="rounded cursor-pointer p-2 hover:bg-gray-100"
+                onClick={() => onMoveToFolder(email.id, "trash")}
+                title="Archiver l'email"
+              >
+                <Archive className="h-5 w-5" />
+              </button>
+              <button
+                className="rounded cursor-pointer p-2 hover:bg-gray-100"
+                onClick={() => onMoveToFolder(email.id, "trash")}
+                title="Supprimer l'email"
+              >
+                <Trash2 className="h-5 w-5" />
+              </button>
+              <button
+              className="rounded cursor-pointer p-2 hover:bg-gray-100"
+              onClick={async () => {
+                if (onMarkAsUnread) {
+                  await onMarkAsUnread(email.id);
+                  window.location.reload();
+            
+                }
+              }}
+              title="Marquer comme non lu"
             >
-              <HelpCircle className="h-5 w-5" />
+              <MailCheck className="h-5 w-5" />
             </button>
-            <button className="rounded p-2 hover:bg-gray-100">
-              <MoreVertical className="h-5 w-5" />
-            </button>
+                <button
+                className="rounded p-2 cursor-pointer hover:bg-gray-100"
+                onClick={() => onShowSupport && onShowSupport()}
+                title="Centre d'aide"
+              >
+                <HelpCircle className="h-5 w-5" />
+              </button>
+             {/* Menu contextuel (MoreVertical) */}
+<div className="relative">
+  <button
+    className="rounded p-2 cursor-pointer hover:bg-gray-100"
+    onClick={() => setShowMenu((prev) => !prev)}
+    title="Plus d'options"
+  >
+    <MoreVertical className="h-5 w-5" />
+  </button>
+
+  {showMenu && (
+    <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
+      <button
+        onClick={() => onMoveToFolder(email.id, "archive")}
+        className="flex w-full justify-center cursor-pointer items-center gap-2 px-4 py-2 hover:bg-gray-100 text-sm text-gray-700"
+      >
+        Archiver
+      </button>
+      <button
+        onClick={() => onMoveToFolder(email.id, "trash")}
+        className="flex w-full justify-center cursor-pointer items-center gap-2 px-4 py-2 hover:bg-gray-100 text-sm text-gray-700"
+      >
+         Supprimer
+      </button>
+      <button
+        onClick={async () => {
+          if (onMarkAsUnread) {
+            await onMarkAsUnread(email.id);
+            window.location.reload();
+          }
+        }}
+        className="flex w-full justify-center cursor-pointer items-center gap-2 px-4 py-2 hover:bg-gray-100 text-sm text-gray-700"
+      >
+         Marquer comme non lu
+      </button>
+      <button
+        onClick={() => onShowSupport && onShowSupport()}
+        className="flex w-full justify-center cursor-pointer items-center gap-2 px-4 py-2 hover:bg-gray-100 text-sm text-gray-700"
+      >
+        Aide et support
+      </button>
+    </div>
+  )}
+</div>
+
+            </div>
+            <div className=" w-[100%] flex justify-end">
+               <button
+            
+                className={`rounded p-2  ${
+                  email.isStarred ? "text-yellow-500" : ""
+                }`}
+              >
+                <Star
+                  className={`h-7 w-7 ${email.isStarred ? "fill-current" : ""}`}
+                />
+              </button>
+            </div>
           </div>
         </div>
 

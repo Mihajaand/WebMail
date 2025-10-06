@@ -108,7 +108,7 @@ const navigate = useNavigate();
               {folder.name}
             </span>
             {folder.count > 0 && (
-              <span className="mb-1 rounded-full bg-red-500 px-1 text-xs text-white">
+              <span className="mb-1 rounded-full bg-red-500 animate-bounce px-1 text-xs text-white">
                 {folder.count}
               </span>
             )}

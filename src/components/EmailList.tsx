@@ -211,10 +211,12 @@ const EmailList = ({
                           e.stopPropagation();
                           onToggleStar(email.id);
                         }}
-                        className={`rounded p-1 hover:bg-gray-200 ${email.isStarred ? "text-yellow-500" : "text-gray-400"}`}
+                       title={email.isStarred ? "Retirer au suivi " : "Ajouter au suivi"}
+                        className={`rounded p-1 cursor-pointer hover:bg-gray-200 ${email.isStarred ? "text-yellow-500" : "text-gray-400"}`}
                       >
                         <Star
                           className={`h-4 w-4 ${email.isStarred ? "fill-current" : ""}`}
+                          
                         />
                       </button>
                     </div>
