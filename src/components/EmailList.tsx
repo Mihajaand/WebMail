@@ -93,9 +93,9 @@ const EmailList = ({
 
   return (
     <div
-      className={`${selectedEmail ? "hidden md:flex" : "flex"} ${showEmailList ? "flex" : "hidden md:flex"} w-full flex-col border-r bg-white md:w-80 lg:w-96`}
+      className={`${selectedEmail ? "hidden md:flex" : "flex"} ${showEmailList ? "flex" : "hidden md:flex"} w-full flex-col border-r border-gray-300 bg-white md:w-80 lg:w-96`}
     >
-      <div className="border-b p-4">
+      <div className="border-b border-gray-300 p-4">
         <div className="relative">
           <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
           <input
@@ -103,12 +103,12 @@ const EmailList = ({
             placeholder="Rechercher dans les emails"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full rounded-lg border py-2 pr-4 pl-10 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            className="w-full rounded-lg border border-gray-300 py-2 pr-4 pl-10 focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
         </div>
       </div>
 
-      <div className="border-b p-4">
+      <div className="border-b border-gray-300 p-4">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-gray-900">
             {folders.find((f) => f.id === currentFolder)?.name}
@@ -175,7 +175,7 @@ const EmailList = ({
             <div
               key={email.id}
               onClick={() => onEmailSelect(email)}
-              className={`cursor-pointer border-b p-4 hover:bg-gray-50 ${
+              className={`cursor-pointer border-b border-gray-300 p-4 hover:bg-gray-50 ${
                 selectedEmail?.id === email.id
                   ? "border-blue-200 bg-blue-50"
                   : ""

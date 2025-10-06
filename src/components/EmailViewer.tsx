@@ -7,6 +7,10 @@ import {
   CornerUpLeft,
   Paperclip,
   Download,
+  CornerUpRight,
+  MailPlus,
+  MailCheck,
+  HelpCircle,
 } from "lucide-react";
 import type { Email } from "../types/email";
 
@@ -57,7 +61,7 @@ const EmailViewer = ({
 
   return (
     <div className="flex flex-1 flex-col bg-white">
-      <div className="border-b p-4">
+      <div className="border-b border-gray-300 p-4">
         <div className="mb-4 flex items-center justify-between">
           <button
             onClick={onClose}
@@ -89,6 +93,18 @@ const EmailViewer = ({
               onClick={() => onMoveToFolder(email.id, "trash")}
             >
               <Trash2 className="h-5 w-5" />
+            </button>
+             <button
+              className="rounded p-2 hover:bg-gray-100"
+              onClick={() => onMoveToFolder(email.id, "trash")}
+            >
+              <MailCheck className="h-5 w-5" />
+            </button>
+              <button
+              className="rounded p-2 hover:bg-gray-100"
+              onClick={() => onMoveToFolder(email.id, "trash")}
+            >
+              <HelpCircle className="h-5 w-5" />
             </button>
             <button className="rounded p-2 hover:bg-gray-100">
               <MoreVertical className="h-5 w-5" />
@@ -124,7 +140,7 @@ const EmailViewer = ({
 
         {/* Section pièces jointes */}
         {email.attachments.length > 0 && (
-  <div className="mt-6 border-t pt-4">
+  <div className="mt-6 border-t border-gray-200 pt-4">
     <h4 className="mb-2 font-medium">Pièces jointes</h4>
     <div className="space-y-2">
       {email.attachments?.map((attachment, index) => (
@@ -154,12 +170,17 @@ const EmailViewer = ({
 
       </div>
 
-      <div className="border-t p-4">
-        <button className="flex cursor-pointer items-center space-x-2 rounded-md bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-800">
-          <CornerUpLeft className="h-4 w-4" />
-          <span>Répondre</span>
-        </button>
-      </div>
+      <div className="border-t gap-2 border-gray-300 p-[12.9px] flex justify-end items-end">
+  <button className="flex gap-1 cursor-pointer items-center space-x-2 rounded-3xl bg-white px-4 py-2 font-semibold text-gray-600 border-2 border-gray-600 hover:bg-gray-100">
+    <CornerUpLeft className="h-4 w-4" />
+    <span>Répondre</span>
+  </button>
+  <button className="flex gap-1 cursor-pointer items-center space-x-2 rounded-3xl bg-white px-4 py-2 font-semibold text-gray-600 border-2 border-gray-600 hover:bg-gray-100">
+    <span>Transférer</span>
+    <CornerUpRight className="h-4 w-4" />
+  </button>
+</div>
+
     </div>
   );
 };

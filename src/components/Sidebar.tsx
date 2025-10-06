@@ -75,7 +75,7 @@ const Sidebar = ({
 const navigate = useNavigate();
   return (
     <div
-      className={`${showEmailList ? "hidden md:flex" : "flex"} w-64 flex-col border-r bg-white`}
+      className={`${showEmailList ? "hidden md:flex" : "flex"} w-64 flex-col border-r border-gray-300 bg-white`}
     >
       <img
         src={logoEni}
@@ -116,7 +116,7 @@ const navigate = useNavigate();
         ))}
       </nav>
 
-      <div className="border-t p-4">
+      <div className="border-t border-gray-300 p-4">
         <div className="flex items-center space-x-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-r from-green-500 to-blue-600 font-semibold text-white">
             {getInitial(user.username)}
