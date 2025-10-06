@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Send, Paperclip, RefreshCw, Save, XCircle } from "lucide-react";
+import { X, Send, Paperclip, RefreshCw, Save, XCircle, Download } from "lucide-react";
 
 interface ComposeEmailData {
   to: string[];
@@ -12,6 +12,7 @@ interface ComposeEmailData {
 
 interface DraftData extends ComposeEmailData {
   id?: string;
+  forwardedAttachments?: any[]; // Pièces jointes d'un email transféré
 }
 
 interface ComposeModalProps {
@@ -36,6 +37,7 @@ const ComposeModal = ({
   const [savingDraft, setSavingDraft] = useState(false);
   const [showCcBcc, setShowCcBcc] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [forwardedAttachments, setForwardedAttachments] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Charger les données du brouillon si disponibles
@@ -47,6 +49,12 @@ const ComposeModal = ({
       setBcc(Array.isArray(draftData.bcc) ? draftData.bcc.join(", ") : "");
       setSubject(draftData.subject || "");
       setBody(draftData.body || "");
+
+      // Charger les pièces jointes transférées
+      if (draftData.forwardedAttachments && draftData.forwardedAttachments.length > 0) {
+        console.log("📎 Chargement des pièces jointes transférées:", draftData.forwardedAttachments);
+        setForwardedAttachments(draftData.forwardedAttachments);
+      }
 
       // Afficher CC/BCC si ils contiennent des données
       if (
@@ -148,6 +156,7 @@ const ComposeModal = ({
     setSubject("");
     setBody("");
     setAttachments([]);
+    setForwardedAttachments([]);
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -161,7 +170,13 @@ const ComposeModal = ({
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleRemoveForwardedAttachment = (index: number) => {
+    setForwardedAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
   const isFormValid = to.trim() && subject.trim();
+
+  const totalAttachments = attachments.length + forwardedAttachments.length;
 
   return (
     <div className="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black">
@@ -254,6 +269,11 @@ const ComposeModal = ({
                 <Paperclip className="h-4 w-4" />
                 <span>Ajouter une pièce jointe</span>
               </button>
+              {totalAttachments > 0 && (
+                <span className="text-sm text-gray-500">
+                  ({totalAttachments} pièce{totalAttachments > 1 ? 's' : ''} jointe{totalAttachments > 1 ? 's' : ''})
+                </span>
+              )}
             </div>
             
             <input 
@@ -264,11 +284,50 @@ const ComposeModal = ({
               multiple
             />
 
-            {/* Liste des pièces jointes */}
+            {/* Liste des pièces jointes transférées */}
+            {forwardedAttachments.length > 0 && (
+              <div className="mt-2 space-y-2">
+                <p className="text-xs text-gray-500 font-medium">Pièces jointes transférées :</p>
+                {forwardedAttachments.map((attachment, index) => (
+                  <div key={`fwd-${index}`} className="flex items-center justify-between rounded bg-blue-50 px-3 py-2 border border-blue-200">
+                    <div className="flex items-center space-x-2">
+                      <Paperclip className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-900">{attachment.name}</span>
+                      <span className="text-xs text-blue-600">
+                        ({Math.round(attachment.size / 1024)}KB)
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <a
+                        href={attachment.url}
+                        download={attachment.name}
+                        className="rounded p-1 hover:bg-blue-200 text-blue-600"
+                        title="Télécharger"
+                      >
+                        <Download className="h-4 w-4" />
+                      </a>
+                      <button
+                        onClick={() => handleRemoveForwardedAttachment(index)}
+                        className="text-blue-600 hover:text-red-600"
+                        type="button"
+                        title="Retirer"
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Liste des nouvelles pièces jointes */}
             {attachments.length > 0 && (
               <div className="mt-2 space-y-2">
+                {forwardedAttachments.length > 0 && (
+                  <p className="text-xs text-gray-500 font-medium">Nouvelles pièces jointes :</p>
+                )}
                 {attachments.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between rounded bg-gray-50 px-3 py-2">
+                  <div key={`new-${index}`} className="flex items-center justify-between rounded bg-gray-50 px-3 py-2">
                     <div className="flex items-center space-x-2">
                       <Paperclip className="h-4 w-4 text-gray-500" />
                       <span className="text-sm">{file.name}</span>

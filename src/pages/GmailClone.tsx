@@ -19,6 +19,7 @@ interface ComposeEmailData {
 
 interface DraftData extends ComposeEmailData {
   id?: string;
+  forwardedAttachments?: any[];
 }
 
 interface GmailCloneProps {
@@ -281,11 +282,13 @@ const GmailClone = ({ user }: GmailCloneProps) => {
   // Gérer le transfert d'un email
   const handleForward = (emailData: { subject: string; body: string; attachments?: any[] }) => {
     console.log("➡️ Transfert de l'email:", emailData);
+    console.log("📎 Pièces jointes à transférer:", emailData.attachments);
     
     setDraftToEdit({
       to: [],
       subject: emailData.subject,
       body: emailData.body,
+      forwardedAttachments: emailData.attachments || [],
     });
     
     setShowCompose(true);
