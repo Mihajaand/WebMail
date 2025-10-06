@@ -179,9 +179,9 @@ const ComposeModal = ({
   const totalAttachments = attachments.length + forwardedAttachments.length;
 
   return (
-    <div className="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black">
+    <div className="bg-opacity-50 fixed inset-0 z-50 flex items-center border justify-center shadow-blue-600 shadow-2xl backdrop-blur-sm bg-black/10">
       <div className="mx-4 flex max-h-[80vh] w-full max-w-2xl flex-col rounded-lg bg-white">
-        <div className="flex items-center justify-between border-b p-4">
+        <div className="flex items-center justify-between border-b border-gray-300 p-4">
           <h2 className="text-lg font-semibold">
             {draftData ? "Modifier le brouillon" : "Nouveau message"}
           </h2>
@@ -198,7 +198,7 @@ const ComposeModal = ({
                 type="email"
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
-                className="w-full rounded-md border px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 placeholder="destinataire@eni.mg"
                 disabled={sending || savingDraft}
               />
@@ -238,7 +238,7 @@ const ComposeModal = ({
                     type="email"
                     value={bcc}
                     onChange={(e) => setBcc(e.target.value)}
-                    className="w-full rounded-md border px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     placeholder="copie.cachee@eni.mg"
                     disabled={sending || savingDraft}
                   />
@@ -252,7 +252,7 @@ const ComposeModal = ({
                 type="text"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                className="w-full rounded-md border px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 disabled={sending || savingDraft}
               />
             </div>
@@ -352,14 +352,14 @@ const ComposeModal = ({
             <textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              className="h-full min-h-[200px] w-full resize-none rounded-md border px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              className="h-full min-h-[200px] w-full resize-none rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               placeholder="Rédigez votre message..."
               disabled={sending || savingDraft}
             />
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-t p-4">
+        <div className="flex items-center justify-between border-t border-gray-300 p-4">
           <div className="flex items-center space-x-2">
             <button
               className="rounded p-2 hover:bg-gray-100"
