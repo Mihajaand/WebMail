@@ -3,26 +3,26 @@ import emailjs from "@emailjs/browser";
 
 // Configuration EmailJS
 const EMAILJS_CONFIG = {
-  SERVICE_ID: "service_36yv85c", // À configurer dans EmailJS
-  TEMPLATE_ID: "template_xqyp0cr", // À configurer dans EmailJS
-  PUBLIC_KEY: "SkC16Z_GcNqhLRQxJ", // Clé publique EmailJS
+  SERVICE_ID: "service_36yv85c",
+  TEMPLATE_ID: "template_xqyp0cr",
+  PUBLIC_KEY: "SkC16Z_GcNqhLRQxJ",
 };
 
 // Interface pour les données d'email externe
 interface ExternalEmailData {
-  from: string; // L'utilisateur interne (ex: volatiana@eni.mg)
-  to: string; // L'email externe (ex: mihajamahefaandy@gmail.com)
+  from: string;
+  to: string;
   subject: string;
   body: string;
   cc?: string[];
   bcc?: string[];
   attachments?: File[];
+  isCcRecipient?: boolean; // Pour savoir si c'est un destinataire en CC
 }
 
 class EmailJSService {
   private isInitialized = false;
 
-  // Initialiser EmailJS
   private init() {
     if (!this.isInitialized) {
       emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
@@ -31,12 +31,10 @@ class EmailJSService {
     }
   }
 
-  // Vérifier si un email est externe (pas @eni.mg)
   isExternalEmail(email: string): boolean {
     return !email.toLowerCase().endsWith("@eni.mg");
   }
 
-  // Séparer les emails internes et externes
   categorizeRecipients(recipients: string[]) {
     const internal: string[] = [];
     const external: string[] = [];
@@ -52,7 +50,6 @@ class EmailJSService {
     return { internal, external };
   }
 
-  // Générer le HTML des pièces jointes
   private generateAttachmentsHtml(attachments?: File[]): string {
     if (!attachments || attachments.length === 0) return "";
 
@@ -76,9 +73,34 @@ class EmailJSService {
     `;
   }
 
+  // Générer le message d'information CC
+  private generateCcNotice(ccList: string[], primaryRecipient: string): string {
+    if (!ccList || ccList.length === 0) return "";
+
+    const otherRecipients = ccList.filter(email => email !== primaryRecipient);
+    if (otherRecipients.length === 0) return "";
+
+    const recipientNames = otherRecipients.join(", ");
+    const plural = otherRecipients.length > 1;
+
+    return `
+<div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin-bottom: 20px; border-radius: 4px;">
+  <p style="margin: 0; color: #1e40af; font-size: 14px;">
+    ℹ️ <strong>Information :</strong> ${plural ? 'Les personnes suivantes ont' : 'La personne suivante a'} également reçu ce message en copie : ${recipientNames}
+  </p>
+</div>
+    `.trim();
+  }
+
   // Formater le message pour les emails externes
   private formatExternalMessage(emailData: ExternalEmailData): string {
+    const ccNotice = emailData.isCcRecipient && emailData.cc 
+      ? this.generateCcNotice(emailData.cc, emailData.to)
+      : "";
+
     return `
+${ccNotice}
+
 ${emailData.body}
 
 ---
@@ -97,34 +119,21 @@ ENI - École Nationale d'Informatique
 
       console.log("📤 Envoi email externe via EmailJS:", emailData);
 
-      // Template parameters pour EmailJS
       const templateParams = {
-        // Expéditeur technique
         from_email: "eni.service.reply@gmail.com",
         from_name: "ENI Service Mail",
-
-        // Expéditeur réel
         real_sender: emailData.from,
         original_subject: emailData.subject,
-
-        // Destinataire externe
         to_email: emailData.to,
-
-        // Objet modifié
         subject: `[De: ${emailData.from}] ${emailData.subject}`,
-
-        // Corps du message + pièces jointes
         message: this.formatExternalMessage(emailData),
         attachments_html: this.generateAttachmentsHtml(emailData.attachments),
-
-        // CC / BCC
-        cc_list: emailData.cc?.join(", ") || "",
-        bcc_list: emailData.bcc?.join(", ") || "",
+        cc_list: "",
+        bcc_list: "",
       };
 
       console.log("📦 Template params:", templateParams);
 
-      // Envoi via EmailJS
       const result = await emailjs.send(
         EMAILJS_CONFIG.SERVICE_ID,
         EMAILJS_CONFIG.TEMPLATE_ID,
@@ -139,7 +148,82 @@ ENI - École Nationale d'Informatique
     }
   }
 
-  // Envoyer plusieurs emails externes
+  // Envoyer un email avec gestion CC/BCC
+  async sendEmailWithCcBcc(
+    from: string,
+    to: string[],
+    subject: string,
+    body: string,
+    cc?: string[],
+    bcc?: string[],
+    attachments?: File[]
+  ): Promise<{ success: number; failed: number; details: any[] }> {
+    let success = 0;
+    let failed = 0;
+    const details: any[] = [];
+
+    console.log("📬 Envoi email avec CC/BCC");
+    console.log("👤 De:", from);
+    console.log("📧 À:", to);
+    console.log("📋 CC:", cc);
+    console.log("🔒 BCC:", bcc);
+
+    // Liste de tous les destinataires (TO + CC + BCC)
+    const allRecipients = [
+      ...to,
+      ...(cc || []),
+      ...(bcc || [])
+    ];
+
+    console.log(`📨 Total destinataires: ${allRecipients.length}`);
+
+    // Envoyer à chaque destinataire individuellement
+    for (const recipient of allRecipients) {
+      try {
+        const isCcRecipient = cc?.includes(recipient) || false;
+        const isBccRecipient = bcc?.includes(recipient) || false;
+
+        console.log(`📤 Envoi à ${recipient} (CC: ${isCcRecipient}, BCC: ${isBccRecipient})`);
+
+        const emailData: ExternalEmailData = {
+          from,
+          to: recipient,
+          subject,
+          body,
+          cc: isCcRecipient ? [...to, ...(cc || [])] : undefined, // Inclure la liste CC pour les destinataires CC
+          bcc: undefined, // Ne jamais exposer les BCC
+          attachments,
+          isCcRecipient: isCcRecipient,
+        };
+
+        const sent = await this.sendExternalEmail(emailData);
+        
+        if (sent) {
+          success++;
+          details.push({ recipient, status: "success", type: isBccRecipient ? "BCC" : isCcRecipient ? "CC" : "TO" });
+          console.log(`✅ Envoi réussi à ${recipient}`);
+        } else {
+          failed++;
+          details.push({ recipient, status: "failed", type: isBccRecipient ? "BCC" : isCcRecipient ? "CC" : "TO" });
+          console.log(`❌ Échec envoi à ${recipient}`);
+        }
+
+        // Délai entre les envois pour éviter le rate limiting
+        if (allRecipients.length > 1) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      } catch (error) {
+        failed++;
+        details.push({ recipient, status: "error", error: String(error) });
+        console.error(`❌ Erreur envoi à ${recipient}:`, error);
+      }
+    }
+
+    console.log(`📊 Résultats: ${success} succès, ${failed} échecs`);
+    return { success, failed, details };
+  }
+
+  // Ancienne méthode conservée pour compatibilité
   async sendMultipleExternalEmails(
     from: string,
     recipients: string[],
@@ -148,27 +232,10 @@ ENI - École Nationale d'Informatique
     cc?: string[],
     bcc?: string[]
   ): Promise<{ success: number; failed: number }> {
-    let success = 0;
-    let failed = 0;
-
-    console.log(`📬 Envoi de ${recipients.length} emails externes`);
-
-    for (const recipient of recipients) {
-      const emailData: ExternalEmailData = { from, to: recipient, subject, body, cc, bcc };
-      const sent = await this.sendExternalEmail(emailData);
-      sent ? success++ : failed++;
-
-      // Délai entre les envois
-      if (recipients.length > 1) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-    }
-
-    console.log(`📊 Résultats envoi externe: ${success} succès, ${failed} échecs`);
-    return { success, failed };
+    const result = await this.sendEmailWithCcBcc(from, recipients, subject, body, cc, bcc);
+    return { success: result.success, failed: result.failed };
   }
 
-  // Créer un email de notification d'échec
   createFailureNotification(
     originalSender: string,
     failedRecipients: string[],

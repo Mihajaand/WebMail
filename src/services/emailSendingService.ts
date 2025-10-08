@@ -32,10 +32,34 @@ export class EmailSendingService extends ApiClient {
 
     console.log("📊 Analyse destinataires:", { internal, external });
 
+    // Catégoriser par type (TO, CC, BCC)
+    const toInternal = emailData.to.filter(
+      (email) => !emailjsService.isExternalEmail(email)
+    );
+    const toExternal = emailData.to.filter((email) =>
+      emailjsService.isExternalEmail(email)
+    );
+
+    const ccInternal = (emailData.cc || []).filter(
+      (email) => !emailjsService.isExternalEmail(email)
+    );
+    const ccExternal = (emailData.cc || []).filter((email) =>
+      emailjsService.isExternalEmail(email)
+    );
+
+    const bccInternal = (emailData.bcc || []).filter(
+      (email) => !emailjsService.isExternalEmail(email)
+    );
+    const bccExternal = (emailData.bcc || []).filter((email) =>
+      emailjsService.isExternalEmail(email)
+    );
+
+    console.log("📊 Répartition des destinataires:");
+    console.log("TO - Internes:", toInternal, "Externes:", toExternal);
+    console.log("CC - Internes:", ccInternal, "Externes:", ccExternal);
+    console.log("BCC - Internes:", bccInternal, "Externes:", bccExternal);
+
     // Créer un FormData pour l'envoi des fichiers
-    const formData = new FormData();
-    
-    // Ajouter les données de base
     const emailPayload: EmailData = {
       from: user.email || `${user.username}@eni.mg`,
       to: emailData.to,
@@ -49,11 +73,6 @@ export class EmailSendingService extends ApiClient {
       isImportant: false,
       sentAt: new Date().toISOString(),
       user: user.id,
-      // Temporairement commenté jusqu'à mise à jour du modèle Strapi
-      // hasExternalRecipients: external.length > 0,
-      // externalRecipients: external,
-      // internalRecipients: internal,
-      // deliveryStatus: external.length > 0 ? 'pending' : 'delivered',
     };
 
     console.log("📊 Info tracking (non sauvé en DB):", {
@@ -65,13 +84,13 @@ export class EmailSendingService extends ApiClient {
 
     console.log("📦 Payload pour l'envoi:", emailPayload);
 
-    // Premier appel API pour créer l'email
+    // Premier appel API pour créer l'email dans "sent"
     const sentEmail = await this.fetchApi<ApiResponse<Email>>("/emails", {
       method: "POST",
       body: JSON.stringify({ 
         data: {
           ...emailPayload,
-          publishedAt: new Date().toISOString(), // Ajouter le champ publishedAt requis par Strapi
+          publishedAt: new Date().toISOString(),
         }
       }),
       headers: {
@@ -79,232 +98,266 @@ export class EmailSendingService extends ApiClient {
       },
     });
 
-    // Si il y a des pièces jointes, les uploader dans un second appel
-    // Si il y a des pièces jointes, les uploader dans un second appel
-if (emailData.attachments && emailData.attachments.length > 0) {
-  try {
-    console.log("📎 Préparation de l'upload des pièces jointes pour l'email:", sentEmail.data.id);
-    
-    const formData = new FormData();
-    
-    emailData.attachments.forEach((file) => {
-      formData.append('files', file);
-    });
-    
-    formData.append('ref', 'api::email.email');
-    formData.append('refId', String(sentEmail.data.id));
-    formData.append('field', 'attachments');
+    // Si il y a des pièces jointes, les uploader
+    if (emailData.attachments && emailData.attachments.length > 0) {
+      try {
+        console.log("📎 Préparation de l'upload des pièces jointes pour l'email:", sentEmail.data.id);
+        
+        const formData = new FormData();
+        
+        emailData.attachments.forEach((file) => {
+          formData.append('files', file);
+        });
+        
+        formData.append('ref', 'api::email.email');
+        formData.append('refId', String(sentEmail.data.id));
+        formData.append('field', 'attachments');
 
-    console.log("📎 Uploading attachments...");
+        console.log("📎 Uploading attachments...");
 
-    const uploadResponse = await this.fetchApi("/upload", {
-      method: "POST",
-      body: formData,
-      params: {
-        ref: 'api::email.email',
-        refId: String(sentEmail.data.id),
-        field: 'attachments'
-      },
-      headers: {}
-    });
-    
-    console.log("✅ Pièces jointes uploadées:", uploadResponse);
-    
-    // ✅ IMPORTANT : Stocker les IDs des fichiers uploadés
-    if (Array.isArray(uploadResponse)) {
-      // Mettre à jour sentEmail avec les attachments
-      sentEmail.data.attachments = uploadResponse;
-      console.log(`📎 ${uploadResponse.length} attachments ajoutés à sentEmail:`, uploadResponse.map((f: any) => f.id));
+        const uploadResponse = await this.fetchApi("/upload", {
+          method: "POST",
+          body: formData,
+          params: {
+            ref: 'api::email.email',
+            refId: String(sentEmail.data.id),
+            field: 'attachments'
+          },
+          headers: {}
+        });
+        
+        console.log("✅ Pièces jointes uploadées:", uploadResponse);
+        
+        // Stocker les IDs des fichiers uploadés
+        if (Array.isArray(uploadResponse)) {
+          sentEmail.data.attachments = uploadResponse;
+          console.log(`📎 ${uploadResponse.length} attachments ajoutés à sentEmail:`, uploadResponse.map((f: any) => f.id));
+        }
+        
+      } catch (error) {
+        console.error("❌ Erreur lors de l'upload des pièces jointes:", error);
+        throw error;
+      }
     }
-    
-  } catch (error) {
-    console.error("❌ Erreur lors de l'upload des pièces jointes:", error);
-    throw error;
-  }
-}
 
     console.log("✅ Email final:", sentEmail);
 
-    // 1. Traiter les destinataires INTERNES
-    await this.processInternalRecipients(internal, emailData, user, sentEmail);
+    // 1. Traiter les destinataires INTERNES (TO + CC)
+    await this.processInternalRecipients(
+      [...toInternal, ...ccInternal], 
+      emailData, 
+      user, 
+      sentEmail,
+      ccInternal,
+      ccExternal
+    );
 
-    // 2. Traiter les destinataires EXTERNES via EmailJS
-    // Convertir les pièces jointes au format attendu par EmailJS
-    const emailjsAttachments = emailData.attachments?.map(file => ({
-      name: file.name,
-      data: file, // EmailJS accepte les objets File directement
-    }));
+    // 2. Traiter les destinataires INTERNES BCC (séparément pour confidentialité)
+    await this.processInternalBccRecipients(
+      bccInternal,
+      emailData,
+      user,
+      sentEmail
+    );
 
-    // Préparer les données pour le processus externe
-    const externalEmailData = {
-      ...emailData,
-      attachments: emailjsAttachments,
-      from: user.email || `${user.username}@eni.mg`,
-    };
-
-    await this.processExternalRecipients(external, externalEmailData, user, sentEmail);
+    // 3. Traiter les destinataires EXTERNES via EmailJS
+    await this.processExternalRecipients(
+      toExternal,
+      ccExternal,
+      bccExternal,
+      emailData,
+      user,
+      sentEmail
+    );
 
     return sentEmail;
   }
 
   private async processInternalRecipients(
-  internal: string[],
-  emailData: ComposeEmailData,
-  user: StoredUser,
-  sentEmail?: ApiResponse<Email>, // ⬅️ Passer l'objet sentEmail complet
-): Promise<void> {
-  if (internal.length === 0) return;
-
-  console.log(`📨 Traitement de ${internal.length} destinataires internes`);
-
-  // ✅ Récupérer les IDs des attachments directement de sentEmail
-  let attachmentIds: number[] = [];
-  if (sentEmail?.data?.attachments && Array.isArray(sentEmail.data.attachments)) {
-    attachmentIds = sentEmail.data.attachments.map((att: any) => att.id);
-    console.log(`📎 ${attachmentIds.length} IDs d'attachments récupérés:`, attachmentIds);
-  }
-
-  for (const recipientEmail of internal) {
-    try {
-      console.log(`📨 Recherche du destinataire interne: ${recipientEmail}`);
-      const recipientUser = await userService.getUserByEmail(recipientEmail);
-
-      if (recipientUser) {
-        console.log(`👤 Destinataire interne trouvé:`, recipientUser);
-
-        const inboxData: any = {
-          from: user.email || `${user.username}@eni.mg`,
-          to: [recipientEmail],
-          cc: emailData.cc?.filter(
-            (email) => !emailjsService.isExternalEmail(email),
-          ) || [],
-          bcc: emailData.bcc?.filter(
-            (email) => !emailjsService.isExternalEmail(email),
-          ) || [],
-          subject: emailData.subject,
-          body: emailData.body,
-          folder: "inbox",
-          isRead: false,
-          user: recipientUser.id,
-          sentAt: new Date().toISOString(),
-          isStarred: false,
-          isImportant: false,
-        };
-
-        // ✅ Ajouter les attachments
-        if (attachmentIds.length > 0) {
-          inboxData.attachments = attachmentIds;
-          console.log(`📎 Ajout de ${attachmentIds.length} attachments à l'email inbox`);
-        }
-
-        const inboxPayload = { data: inboxData };
-        console.log("📦 Payload inbox avec attachments:", inboxPayload);
-
-        const deliveredEmail = await this.fetchApi<ApiResponse<Email>>(
-          "/emails",
-          {
-            method: "POST",
-            body: JSON.stringify(inboxPayload),
-          },
-        );
-
-        console.log(
-          `✅ Email livré en interne à ${recipientEmail}:`,
-          deliveredEmail,
-        );
-      } else {
-        console.warn(`⚠️ Destinataire interne non trouvé: ${recipientEmail}`);
-      }
-    } catch (error) {
-      console.error(
-        `❌ Erreur livraison interne à ${recipientEmail}:`,
-        error,
-      );
-    }
-  }
-}
-
-  private async processExternalRecipients(
-    external: string[],
+    internal: string[],
     emailData: ComposeEmailData,
     user: StoredUser,
     sentEmail: ApiResponse<Email>,
+    ccInternal: string[],
+    ccExternal: string[]
   ): Promise<void> {
-    if (external.length === 0) return;
+    if (internal.length === 0) return;
 
-    console.log(`📧 Traitement de ${external.length} destinataires externes`);
+    console.log(`📨 Traitement de ${internal.length} destinataires internes (TO + CC)`);
 
-    try {
-      // Séparer to, cc, bcc externes
-      const externalTo = emailData.to.filter((email) =>
-        emailjsService.isExternalEmail(email),
-      );
-      const externalCc = (emailData.cc || []).filter((email) =>
-        emailjsService.isExternalEmail(email),
-      );
-      const externalBcc = (emailData.bcc || []).filter((email) =>
-        emailjsService.isExternalEmail(email),
-      );
-
-      // Envoyer aux destinataires principaux externes
-let totalSuccess = 0;
-let totalFailed = 0;
-
-if (externalTo.length > 0) {
-  console.log(`📬 Envoi vers ${externalTo.length} destinataires externes`);
-  
-  // Envoyer un email séparé pour chaque destinataire externe
-  for (const recipient of externalTo) {
-    const externalEmailData = {
-      from: user.email || `${user.username}@eni.mg`,
-      to: recipient,
-      subject: emailData.subject,
-      body: emailData.body,
-      cc: externalCc,
-      bcc: externalBcc,
-      attachments: emailData.attachments, // 🎯 Les pièces jointes sont passées ici
-    };
-
-    const sent = await emailjsService.sendExternalEmail(externalEmailData);
-    if (sent) {
-      totalSuccess++;
-    } else {
-      totalFailed++;
+    // Récupérer les IDs des attachments
+    let attachmentIds: number[] = [];
+    if (sentEmail?.data?.attachments && Array.isArray(sentEmail.data.attachments)) {
+      attachmentIds = sentEmail.data.attachments.map((att: any) => att.id);
+      console.log(`📎 ${attachmentIds.length} IDs d'attachments récupérés:`, attachmentIds);
     }
 
-    // Délai entre les envois pour éviter le spam
-    if (externalTo.length > 1 && recipient !== externalTo[externalTo.length - 1]) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Préparer le message avec notice CC si nécessaire
+    let bodyForRecipient = emailData.body;
+    
+    if (ccInternal.length > 0 || ccExternal.length > 0) {
+      const allCc = [...ccInternal, ...ccExternal];
+      const ccNames = allCc.join(", ");
+      const plural = allCc.length > 1;
+      
+      const ccNotice = `ℹ️ Information : ${plural ? 'Les personnes suivantes ont' : 'La personne suivante a'} également reçu ce message en copie : ${ccNames}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+      bodyForRecipient = ccNotice + emailData.body;
+    }
+
+    for (const recipientEmail of internal) {
+      try {
+        console.log(`📨 Recherche du destinataire interne: ${recipientEmail}`);
+        const recipientUser = await userService.getUserByEmail(recipientEmail);
+
+        if (recipientUser) {
+          console.log(`👤 Destinataire interne trouvé:`, recipientUser);
+
+          const inboxData: any = {
+            from: user.email || `${user.username}@eni.mg`,
+            to: emailData.to,
+            cc: emailData.cc || [],
+            bcc: [], // Ne jamais exposer les BCC
+            subject: emailData.subject,
+            body: bodyForRecipient, // Corps avec notice CC
+            folder: "inbox",
+            isRead: false,
+            user: recipientUser.id,
+            sentAt: new Date().toISOString(),
+            isStarred: false,
+            isImportant: false,
+          };
+
+          // Ajouter les attachments
+          if (attachmentIds.length > 0) {
+            inboxData.attachments = attachmentIds;
+            console.log(`📎 Ajout de ${attachmentIds.length} attachments à l'email inbox`);
+          }
+
+          const inboxPayload = { data: inboxData };
+          console.log("📦 Payload inbox avec notice CC:", inboxPayload);
+
+          const deliveredEmail = await this.fetchApi<ApiResponse<Email>>(
+            "/emails",
+            {
+              method: "POST",
+              body: JSON.stringify(inboxPayload),
+            },
+          );
+
+          console.log(
+            `✅ Email livré en interne à ${recipientEmail}:`,
+            deliveredEmail,
+          );
+        } else {
+          console.warn(`⚠️ Destinataire interne non trouvé: ${recipientEmail}`);
+        }
+      } catch (error) {
+        console.error(
+          `❌ Erreur livraison interne à ${recipientEmail}:`,
+          error,
+        );
+      }
     }
   }
 
-  console.log(
-    `📊 Résultat envoi externe TO: ${totalSuccess}/${externalTo.length} succès`,
-  );
-}
+  private async processInternalBccRecipients(
+    bccInternal: string[],
+    emailData: ComposeEmailData,
+    user: StoredUser,
+    sentEmail: ApiResponse<Email>
+  ): Promise<void> {
+    if (bccInternal.length === 0) return;
 
-      // Mettre à jour le statut de livraison (temporairement désactivé)
-      /*
-      const finalStatus = totalFailed === 0 ? 'delivered' : 
-                        totalSuccess === 0 ? 'failed' : 'mixed';
+    console.log(`📨 Traitement de ${bccInternal.length} destinataires BCC internes`);
 
-      await this.updateEmailDeliveryStatus(sentEmail.data.id, finalStatus);
-      */
+    // Récupérer les IDs des attachments
+    let attachmentIds: number[] = [];
+    if (sentEmail?.data?.attachments && Array.isArray(sentEmail.data.attachments)) {
+      attachmentIds = sentEmail.data.attachments.map((att: any) => att.id);
+    }
 
-      console.log("📊 Statut de livraison (non sauvé):", {
-        totalSuccess,
-        totalFailed,
-        finalStatus:
-          totalFailed === 0
-            ? "delivered"
-            : totalSuccess === 0
-              ? "failed"
-              : "mixed",
-      });
+    for (const recipientEmail of bccInternal) {
+      try {
+        console.log(`📨 Recherche du destinataire BCC interne: ${recipientEmail}`);
+        const recipientUser = await userService.getUserByEmail(recipientEmail);
+
+        if (recipientUser) {
+          const inboxData: any = {
+            from: user.email || `${user.username}@eni.mg`,
+            to: emailData.to,
+            cc: emailData.cc || [],
+            bcc: [], // Ne jamais exposer les BCC
+            subject: emailData.subject,
+            body: emailData.body, // Corps SANS notice CC pour BCC
+            folder: "inbox",
+            isRead: false,
+            user: recipientUser.id,
+            sentAt: new Date().toISOString(),
+            isStarred: false,
+            isImportant: false,
+          };
+
+          if (attachmentIds.length > 0) {
+            inboxData.attachments = attachmentIds;
+          }
+
+          const inboxPayload = { data: inboxData };
+
+          await this.fetchApi<ApiResponse<Email>>("/emails", {
+            method: "POST",
+            body: JSON.stringify(inboxPayload),
+          });
+
+          console.log(`✅ Email BCC livré en interne à ${recipientEmail}`);
+        }
+      } catch (error) {
+        console.error(`❌ Erreur livraison BCC interne à ${recipientEmail}:`, error);
+      }
+    }
+  }
+
+  private async processExternalRecipients(
+    toExternal: string[],
+    ccExternal: string[],
+    bccExternal: string[],
+    emailData: ComposeEmailData,
+    user: StoredUser,
+    sentEmail: ApiResponse<Email>
+  ): Promise<void> {
+    const allExternal = [...toExternal, ...ccExternal, ...bccExternal];
+    
+    if (allExternal.length === 0) return;
+
+    console.log(`📧 Traitement de ${allExternal.length} destinataires externes`);
+    console.log(`TO: ${toExternal.length}, CC: ${ccExternal.length}, BCC: ${bccExternal.length}`);
+
+    try {
+      let totalSuccess = 0;
+      let totalFailed = 0;
+
+      // Envoyer à tous les destinataires externes via la nouvelle méthode
+      const result = await emailjsService.sendEmailWithCcBcc(
+        user.email || `${user.username}@eni.mg`,
+        toExternal,
+        emailData.subject,
+        emailData.body,
+        ccExternal.length > 0 ? ccExternal : undefined,
+        bccExternal.length > 0 ? bccExternal : undefined,
+        emailData.attachments
+      );
+
+      totalSuccess = result.success;
+      totalFailed = result.failed;
+
+      console.log(`📊 Résultat envoi externe: ${totalSuccess}/${allExternal.length} succès`);
+      console.log("📋 Détails:", result.details);
 
       // Si il y a des échecs, créer une notification
       if (totalFailed > 0) {
-        const failedEmails = external.slice(totalSuccess);
+        const failedEmails = result.details
+          .filter((d: any) => d.status !== "success")
+          .map((d: any) => d.recipient);
+        
         await this.createFailureNotification(
           user,
           failedEmails,
@@ -315,10 +368,7 @@ if (externalTo.length > 0) {
       console.log("✅ Traitement des emails externes terminé");
     } catch (error) {
       console.error("❌ Erreur lors de l'envoi d'emails externes:", error);
-
-      // Marquer comme échec et créer une notification (temporairement désactivé)
-      // await this.updateEmailDeliveryStatus(sentEmail.data.id, 'failed');
-      await this.createFailureNotification(user, external, emailData.subject);
+      await this.createFailureNotification(user, allExternal, emailData.subject);
     }
   }
 
@@ -369,7 +419,7 @@ if (externalTo.length > 0) {
           folder: "inbox",
           isRead: false,
           isStarred: false,
-          isImportant: true, // Marquer comme important
+          isImportant: true,
           sentAt: new Date().toISOString(),
           user: user.id,
         } as EmailData,
@@ -397,37 +447,19 @@ if (externalTo.length > 0) {
         return false;
       }
 
-      // Vérifier si l'email a des destinataires externes échoués
       const emailData = email as any;
-      if (!emailData.hasExternalRecipients || !emailData.externalRecipients) {
-        console.warn("⚠️ Aucun destinataire externe à renvoyer");
-        return false;
-      }
-
-      // Réessayer l'envoi externe
       const user = this.getStoredUser();
+      
       const result = await emailjsService.sendMultipleExternalEmails(
         user.email || `${user.username}@eni.mg`,
-        emailData.externalRecipients,
+        emailData.to || [],
         emailData.subject,
         emailData.body,
         emailData.cc || [],
         emailData.bcc || [],
       );
 
-      // Mettre à jour le statut
-      const newStatus =
-        result.failed === 0
-          ? "delivered"
-          : result.success === 0
-            ? "failed"
-            : "mixed";
-
-      await this.updateEmailDeliveryStatus(emailId, newStatus);
-
-      console.log(
-        `✅ Renvoi terminé: ${result.success}/${emailData.externalRecipients.length} succès`,
-      );
+      console.log(`✅ Renvoi terminé: ${result.success} succès, ${result.failed} échecs`);
       return result.success > 0;
     } catch (error) {
       console.error("❌ Erreur lors du renvoi:", error);
