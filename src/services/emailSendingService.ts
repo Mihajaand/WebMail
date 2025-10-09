@@ -142,6 +142,16 @@ export class EmailSendingService extends ApiClient {
 
     console.log("✅ Email final:", sentEmail);
 
+    // Récupérer les IDs des attachments UNE SEULE FOIS pour tous les destinataires
+    let attachmentIds: number[] = [];
+    if (sentEmail?.data?.attachments && Array.isArray(sentEmail.data.attachments)) {
+      attachmentIds = sentEmail.data.attachments.map((att: any) => att.id);
+      console.log(`📎 ✅ ${attachmentIds.length} IDs d'attachments récupérés GLOBALEMENT:`, attachmentIds);
+      console.log(`📎 Détails des attachments:`, sentEmail.data.attachments);
+    } else {
+      console.log(`⚠️ AUCUN attachment dans sentEmail`);
+    }
+
     // 1. Traiter les destinataires INTERNES (TO + CC)
     await this.processInternalRecipients(
       [...toInternal, ...ccInternal], 
@@ -149,7 +159,8 @@ export class EmailSendingService extends ApiClient {
       user, 
       sentEmail,
       ccInternal,
-      ccExternal
+      ccExternal,
+      attachmentIds  // ✅ PASSER LES IDS
     );
 
     // 2. Traiter les destinataires INTERNES BCC (séparément pour confidentialité)
@@ -157,7 +168,8 @@ export class EmailSendingService extends ApiClient {
       bccInternal,
       emailData,
       user,
-      sentEmail
+      sentEmail,
+      attachmentIds  // ✅ PASSER LES IDS
     );
 
     // 3. Traiter les destinataires EXTERNES via EmailJS
@@ -180,19 +192,15 @@ export class EmailSendingService extends ApiClient {
     user: StoredUser,
     sentEmail: ApiResponse<Email>,
     ccInternal: string[],
-    ccExternal: string[]
+    ccExternal: string[],
+    attachmentIds: number[]  // ✅ AJOUTER CE PARAMÈTRE
   ): Promise<void> {
     if (internal.length === 0) return;
 
     console.log(`📨 Traitement de ${internal.length} destinataires internes (TO + CC)`);
+    console.log(`📎 AttachmentIds reçus pour internes:`, attachmentIds);
 
-    // Récupérer les IDs des attachments
-    let attachmentIds: number[] = [];
-    if (sentEmail?.data?.attachments && Array.isArray(sentEmail.data.attachments)) {
-      attachmentIds = sentEmail.data.attachments.map((att: any) => att.id);
-      console.log(`📎 ${attachmentIds.length} IDs d'attachments récupérés:`, attachmentIds);
-    }
-
+    // NE PLUS RÉCUPÉRER LES IDS ICI, UTILISER CEUX PASSÉS EN PARAMÈTRE
     // Préparer le message avec notice CC si nécessaire
     let bodyForRecipient = emailData.body;
     
@@ -231,11 +239,13 @@ export class EmailSendingService extends ApiClient {
           // Ajouter les attachments
           if (attachmentIds.length > 0) {
             inboxData.attachments = attachmentIds;
-            console.log(`📎 Ajout de ${attachmentIds.length} attachments à l'email inbox`);
+            console.log(`📎 ✅ Ajout de ${attachmentIds.length} attachments (IDs: ${attachmentIds.join(',')}) à l'email inbox pour ${recipientEmail}`);
+          } else {
+            console.log(`⚠️ Aucun attachment à ajouter pour ${recipientEmail} (attachmentIds vide)`);
           }
 
           const inboxPayload = { data: inboxData };
-          console.log("📦 Payload inbox avec notice CC:", inboxPayload);
+          console.log("📦 Payload inbox avec attachments:", JSON.stringify(inboxPayload, null, 2));
 
           const deliveredEmail = await this.fetchApi<ApiResponse<Email>>(
             "/emails",
@@ -245,10 +255,14 @@ export class EmailSendingService extends ApiClient {
             },
           );
 
-          console.log(
-            `✅ Email livré en interne à ${recipientEmail}:`,
-            deliveredEmail,
-          );
+          console.log(`✅ Email livré en interne à ${recipientEmail}:`, deliveredEmail);
+          
+          // Vérifier les attachments dans la réponse
+          if (deliveredEmail?.data?.attachments) {
+            console.log(`📎 Attachments dans réponse:`, deliveredEmail.data.attachments);
+          } else {
+            console.warn(`⚠️ Pas d'attachments dans la réponse pour ${recipientEmail}`);
+          }
         } else {
           console.warn(`⚠️ Destinataire interne non trouvé: ${recipientEmail}`);
         }
@@ -265,17 +279,15 @@ export class EmailSendingService extends ApiClient {
     bccInternal: string[],
     emailData: ComposeEmailData,
     user: StoredUser,
-    sentEmail: ApiResponse<Email>
+    sentEmail: ApiResponse<Email>,
+    attachmentIds: number[]  // ✅ AJOUTER CE PARAMÈTRE
   ): Promise<void> {
     if (bccInternal.length === 0) return;
 
     console.log(`📨 Traitement de ${bccInternal.length} destinataires BCC internes`);
+    console.log(`📎 AttachmentIds reçus pour BCC internes:`, attachmentIds);
 
-    // Récupérer les IDs des attachments
-    let attachmentIds: number[] = [];
-    if (sentEmail?.data?.attachments && Array.isArray(sentEmail.data.attachments)) {
-      attachmentIds = sentEmail.data.attachments.map((att: any) => att.id);
-    }
+    // NE PLUS RÉCUPÉRER LES IDS ICI, UTILISER CEUX PASSÉS EN PARAMÈTRE
 
     for (const recipientEmail of bccInternal) {
       try {
@@ -300,16 +312,27 @@ export class EmailSendingService extends ApiClient {
 
           if (attachmentIds.length > 0) {
             inboxData.attachments = attachmentIds;
+            console.log(`📎 ✅ Ajout de ${attachmentIds.length} attachments (IDs: ${attachmentIds.join(',')}) à l'email BCC inbox pour ${recipientEmail}`);
+          } else {
+            console.log(`⚠️ Aucun attachment à ajouter pour BCC ${recipientEmail}`);
           }
 
           const inboxPayload = { data: inboxData };
+          console.log("📦 Payload BCC inbox avec attachments:", JSON.stringify(inboxPayload, null, 2));
 
-          await this.fetchApi<ApiResponse<Email>>("/emails", {
+          const result = await this.fetchApi<ApiResponse<Email>>("/emails", {
             method: "POST",
             body: JSON.stringify(inboxPayload),
           });
 
-          console.log(`✅ Email BCC livré en interne à ${recipientEmail}`);
+          console.log(`✅ Email BCC livré en interne à ${recipientEmail}`, result);
+          
+          // Vérifier les attachments dans la réponse
+          if (result?.data?.attachments) {
+            console.log(`📎 Attachments dans réponse BCC:`, result.data.attachments);
+          } else {
+            console.warn(`⚠️ Pas d'attachments dans la réponse BCC pour ${recipientEmail}`);
+          }
         }
       } catch (error) {
         console.error(`❌ Erreur livraison BCC interne à ${recipientEmail}:`, error);
@@ -340,7 +363,15 @@ export class EmailSendingService extends ApiClient {
       let attachmentIds: number[] = [];
       if (sentEmail?.data?.attachments && Array.isArray(sentEmail.data.attachments)) {
         attachmentIds = sentEmail.data.attachments.map((att: any) => att.id);
-        console.log(`📎 ${attachmentIds.length} IDs d'attachments pour emails externes:`, attachmentIds);
+        console.log(`📎 ✅ ${attachmentIds.length} IDs d'attachments récupérés pour emails externes:`, attachmentIds);
+        console.log(`📎 Détails attachments:`, sentEmail.data.attachments);
+      } else {
+        console.log(`⚠️ Aucun attachment trouvé dans sentEmail:`, {
+          hasData: !!sentEmail?.data,
+          hasAttachments: !!sentEmail?.data?.attachments,
+          isArray: Array.isArray(sentEmail?.data?.attachments),
+          attachments: sentEmail?.data?.attachments
+        });
       }
 
       // Envoyer à tous les destinataires externes via la nouvelle méthode
@@ -400,21 +431,28 @@ export class EmailSendingService extends ApiClient {
     attachmentIds: number[]
   ): Promise<void> {
     console.log("🔍 Recherche d'utilisateurs de l'app avec emails externes...");
+    console.log("📎 AttachmentIds reçus:", attachmentIds);
 
     const allExternalEmails = [...toExternal, ...ccExternal, ...bccExternal];
+    console.log("📧 Emails externes à traiter:", allExternalEmails);
 
     for (const externalEmail of allExternalEmails) {
       try {
+        console.log(`\n🔍 Traitement de ${externalEmail}...`);
+        
         // Vérifier si cet email externe correspond à un utilisateur de l'app
         const recipientUser = await userService.getUserByEmail(externalEmail);
 
         if (recipientUser) {
-          console.log(`👤 Utilisateur trouvé dans l'app avec email externe: ${externalEmail}`);
+          console.log(`👤 ✅ Utilisateur trouvé dans l'app avec email externe: ${externalEmail}`);
+          console.log(`👤 User ID: ${recipientUser.id}, Username: ${recipientUser.username}`);
 
           // Déterminer le type de destinataire (TO, CC, BCC)
           const isTo = toExternal.includes(externalEmail);
           const isCc = ccExternal.includes(externalEmail);
           const isBcc = bccExternal.includes(externalEmail);
+
+          console.log(`📋 Type de destinataire: TO=${isTo}, CC=${isCc}, BCC=${isBcc}`);
 
           // Préparer le message avec notice CC si c'est un destinataire TO ou CC
           let bodyForRecipient = emailData.body;
@@ -426,6 +464,7 @@ export class EmailSendingService extends ApiClient {
             
             const ccNotice = `ℹ️ Information : ${plural ? 'Les personnes suivantes ont' : 'La personne suivante a'} également reçu ce message en copie : ${ccNames}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
             bodyForRecipient = ccNotice + emailData.body;
+            console.log("📝 Notice CC ajoutée au message");
           }
 
           const inboxData: any = {
@@ -443,28 +482,39 @@ export class EmailSendingService extends ApiClient {
             isImportant: false,
           };
 
-          // Ajouter les attachments
-          if (attachmentIds.length > 0) {
+          // IMPORTANT : Ajouter les attachments
+          if (attachmentIds && attachmentIds.length > 0) {
             inboxData.attachments = attachmentIds;
-            console.log(`📎 Ajout de ${attachmentIds.length} attachments à l'email inbox externe`);
+            console.log(`📎 ✅ Ajout de ${attachmentIds.length} attachments (IDs: ${attachmentIds.join(', ')}) à l'email inbox externe`);
+          } else {
+            console.log(`⚠️ Aucun attachment à ajouter (attachmentIds: ${JSON.stringify(attachmentIds)})`);
           }
 
           const inboxPayload = { data: inboxData };
-          console.log("📦 Création inbox pour utilisateur externe:", inboxPayload);
+          console.log("📦 Payload complet pour utilisateur externe:", JSON.stringify(inboxPayload, null, 2));
 
-          await this.fetchApi<ApiResponse<Email>>("/emails", {
+          const result = await this.fetchApi<ApiResponse<Email>>("/emails", {
             method: "POST",
             body: JSON.stringify(inboxPayload),
           });
 
-          console.log(`✅ Email inbox créé pour ${externalEmail} (utilisateur de l'app)`);
+          console.log(`✅ Email inbox créé pour ${externalEmail}:`, result);
+          
+          // Vérifier si les attachments sont bien dans la réponse
+          if (result.data && result.data.attachments) {
+            console.log(`📎 Attachments dans la réponse:`, result.data.attachments);
+          } else {
+            console.warn(`⚠️ Pas d'attachments dans la réponse pour ${externalEmail}`);
+          }
         } else {
-          console.log(`📧 ${externalEmail} n'est pas un utilisateur de l'app (email externe seulement)`);
+          console.log(`📧 ❌ ${externalEmail} n'est pas un utilisateur de l'app (email externe seulement)`);
         }
       } catch (error) {
         console.error(`❌ Erreur lors de la création inbox pour ${externalEmail}:`, error);
       }
     }
+    
+    console.log("\n✅ Fin du traitement des utilisateurs externes dans l'app");
   }
 
   // Méthode pour mettre à jour le statut de livraison
