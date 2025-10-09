@@ -161,6 +161,7 @@ export class EmailSendingService extends ApiClient {
     );
 
     // 3. Traiter les destinataires EXTERNES via EmailJS
+    // IMPORTANT : Cette méthode vérifie aussi si les emails externes appartiennent à des utilisateurs de l'app
     await this.processExternalRecipients(
       toExternal,
       ccExternal,
@@ -335,6 +336,13 @@ export class EmailSendingService extends ApiClient {
       let totalSuccess = 0;
       let totalFailed = 0;
 
+      // Récupérer les IDs des attachments
+      let attachmentIds: number[] = [];
+      if (sentEmail?.data?.attachments && Array.isArray(sentEmail.data.attachments)) {
+        attachmentIds = sentEmail.data.attachments.map((att: any) => att.id);
+        console.log(`📎 ${attachmentIds.length} IDs d'attachments pour emails externes:`, attachmentIds);
+      }
+
       // Envoyer à tous les destinataires externes via la nouvelle méthode
       const result = await emailjsService.sendEmailWithCcBcc(
         user.email || `${user.username}@eni.mg`,
@@ -351,6 +359,16 @@ export class EmailSendingService extends ApiClient {
 
       console.log(`📊 Résultat envoi externe: ${totalSuccess}/${allExternal.length} succès`);
       console.log("📋 Détails:", result.details);
+
+      // NOUVEAU : Créer une copie inbox pour les utilisateurs de l'app qui ont un email externe
+      await this.createInboxForExternalAppUsers(
+        toExternal,
+        ccExternal,
+        bccExternal,
+        emailData,
+        user,
+        attachmentIds
+      );
 
       // Si il y a des échecs, créer une notification
       if (totalFailed > 0) {
@@ -369,6 +387,83 @@ export class EmailSendingService extends ApiClient {
     } catch (error) {
       console.error("❌ Erreur lors de l'envoi d'emails externes:", error);
       await this.createFailureNotification(user, allExternal, emailData.subject);
+    }
+  }
+
+  // NOUVELLE MÉTHODE : Créer des emails inbox pour les utilisateurs de l'app avec emails externes
+  private async createInboxForExternalAppUsers(
+    toExternal: string[],
+    ccExternal: string[],
+    bccExternal: string[],
+    emailData: ComposeEmailData,
+    senderUser: StoredUser,
+    attachmentIds: number[]
+  ): Promise<void> {
+    console.log("🔍 Recherche d'utilisateurs de l'app avec emails externes...");
+
+    const allExternalEmails = [...toExternal, ...ccExternal, ...bccExternal];
+
+    for (const externalEmail of allExternalEmails) {
+      try {
+        // Vérifier si cet email externe correspond à un utilisateur de l'app
+        const recipientUser = await userService.getUserByEmail(externalEmail);
+
+        if (recipientUser) {
+          console.log(`👤 Utilisateur trouvé dans l'app avec email externe: ${externalEmail}`);
+
+          // Déterminer le type de destinataire (TO, CC, BCC)
+          const isTo = toExternal.includes(externalEmail);
+          const isCc = ccExternal.includes(externalEmail);
+          const isBcc = bccExternal.includes(externalEmail);
+
+          // Préparer le message avec notice CC si c'est un destinataire TO ou CC
+          let bodyForRecipient = emailData.body;
+          
+          if ((isTo || isCc) && (emailData.cc && emailData.cc.length > 0)) {
+            const allCc = [...(emailData.cc || [])];
+            const ccNames = allCc.join(", ");
+            const plural = allCc.length > 1;
+            
+            const ccNotice = `ℹ️ Information : ${plural ? 'Les personnes suivantes ont' : 'La personne suivante a'} également reçu ce message en copie : ${ccNames}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+            bodyForRecipient = ccNotice + emailData.body;
+          }
+
+          const inboxData: any = {
+            from: senderUser.email || `${senderUser.username}@eni.mg`,
+            to: emailData.to,
+            cc: isBcc ? [] : (emailData.cc || []), // Ne pas exposer les CC aux BCC
+            bcc: [], // Ne jamais exposer les BCC
+            subject: emailData.subject,
+            body: isBcc ? emailData.body : bodyForRecipient, // BCC sans notice CC
+            folder: "inbox",
+            isRead: false,
+            user: recipientUser.id,
+            sentAt: new Date().toISOString(),
+            isStarred: false,
+            isImportant: false,
+          };
+
+          // Ajouter les attachments
+          if (attachmentIds.length > 0) {
+            inboxData.attachments = attachmentIds;
+            console.log(`📎 Ajout de ${attachmentIds.length} attachments à l'email inbox externe`);
+          }
+
+          const inboxPayload = { data: inboxData };
+          console.log("📦 Création inbox pour utilisateur externe:", inboxPayload);
+
+          await this.fetchApi<ApiResponse<Email>>("/emails", {
+            method: "POST",
+            body: JSON.stringify(inboxPayload),
+          });
+
+          console.log(`✅ Email inbox créé pour ${externalEmail} (utilisateur de l'app)`);
+        } else {
+          console.log(`📧 ${externalEmail} n'est pas un utilisateur de l'app (email externe seulement)`);
+        }
+      } catch (error) {
+        console.error(`❌ Erreur lors de la création inbox pour ${externalEmail}:`, error);
+      }
     }
   }
 
