@@ -255,6 +255,19 @@ const GmailClone = ({ user }: GmailCloneProps) => {
 
   const handleEmailSelect = async (email: Email) => {
     console.log("📖 Opening email:", email);
+    
+    // Debug des attachments
+    if (email.attachments && email.attachments.length > 0) {
+      console.log("📎 Attachments de l'email:", email.attachments);
+      email.attachments.forEach((att, idx) => {
+        console.log(`📎 Attachment ${idx}:`, {
+          name: att.name,
+          size: att.size,
+          allProps: Object.keys(att),
+          fullObject: att
+        });
+      });
+    }
 
     if (email.folder === "draft") {
       const draftData: DraftData = {

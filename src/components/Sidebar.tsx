@@ -145,7 +145,7 @@ const navigate = useNavigate();
     localStorage.removeItem("jwt");
     navigate("/login");
   }}
-  className="mt-2 w-full flex items-center justify-center gap-2 cursor-pointer rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700"
+  className="mt-2 w-full flex items-center justify-center gap-2 cursor-pointer rounded  px-3 py-1 text-red-600 hover:bg-red-200 border-2 border-red-600"
 >
   <LogOut className="h-4 w-4" />
   <span>Déconnexion</span>

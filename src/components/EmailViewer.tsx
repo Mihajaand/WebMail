@@ -356,9 +356,12 @@ const handlePrint = () => {
           <div className="flex items-center space-x-2">
             <Paperclip className="h-4 w-4 text-gray-500" />
             <span className="text-sm">{attachment.name}</span>
-            <span className="text-xs text-gray-500">
-              ({Math.round(attachment.size / 1024)}KB)
-            </span>
+           <span className="text-xs text-gray-500">
+  {attachment.size && attachment.size > 0
+    ? `(${Math.round(attachment.size)} KB)`
+    : `(${Math.round(attachment.size)} KB)`}
+</span>
+
           </div>
           <a
             href={attachment.url}
