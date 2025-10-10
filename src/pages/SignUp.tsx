@@ -193,11 +193,18 @@ const SignUp = () => {
 
             {/* Bouton d'inscription */}
             <button
-              onClick={handleSubmit}
-              className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 py-3 font-semibold text-white shadow-lg shadow-blue-300/50 transition-all duration-200 hover:from-blue-700 hover:to-blue-800 hover:shadow-xl hover:shadow-blue-400/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-[0.98]"
-            >
-              S'inscrire
-            </button>
+  onClick={handleSubmit}
+  className="w-full rounded-lg cursor-pointer bg-white py-3 font-semibold text-blue-600 border-2 border-blue-200
+    shadow-[0_6px_15px_rgba(0,0,255,0.25),0_0_10px_rgba(0,150,255,0.15),inset_0_0_5px_rgba(0,0,100,0.2)]
+    transition-all duration-300
+    hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-lg
+    hover:shadow-[0_10px_20px_rgba(0,0,255,0.3),0_0_25px_rgba(0,150,255,0.2),inset_0_0_6px_rgba(0,0,150,0.2)]
+    hover:-translate-y-0.5 active:translate-y-0 active:scale-95
+    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+>
+  S'inscrire
+</button>
+
           </div>
         </div>
 

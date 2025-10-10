@@ -185,9 +185,20 @@ const ComposeModal = ({
           <h2 className="text-lg font-semibold">
             {draftData ? "Modifier le brouillon" : "Nouveau message"}
           </h2>
-          <button onClick={handleClose} disabled={sending || savingDraft}>
-            <X className="h-5 w-5" />
-          </button>
+          <button
+  onClick={handleClose}
+  disabled={sending || savingDraft}
+  className={`flex cursor-pointer items-center justify-center rounded-full p-2 
+    transition-all duration-300
+    hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md
+    hover:shadow-[0_6px_15px_rgba(0,0,0,0.25),inset_0_0_8px_rgba(255,255,255,0.15)]
+    hover:-translate-y-0.5
+    active:translate-y-0 active:scale-95
+    disabled:opacity-50 disabled:cursor-not-allowed`}
+>
+  <X className="h-5 w-5 text-gray-700 hover:text-gray-900 transition-colors duration-300" />
+</button>
+
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col">
@@ -209,7 +220,10 @@ const ComposeModal = ({
                 <button
                   type="button"
                   onClick={() => setShowCcBcc(true)}
-                  className="text-sm text-blue-600 hover:text-blue-800"
+                  className={`text-sm cursor-pointer text-blue-600 transition-all duration-300 
+  hover:text-blue-800 hover:drop-shadow-[0_0_6px_rgba(0,150,255,0.6)] 
+  hover:-translate-y-0.5 hover:backdrop-blur-sm hover:bg-opacity-10`}
+
                   disabled={sending || savingDraft}
                 >
                   Cc/Bcc
@@ -263,7 +277,12 @@ const ComposeModal = ({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center space-x-2 rounded px-3 py-2 text-gray-600 hover:bg-gray-100"
+                className={`flex cursor-pointer items-center space-x-2 rounded-xl px-3 py-2 text-gray-600 
+  transition-all duration-300 
+  hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md 
+  hover:shadow-[0_8px_20px_rgba(100,100,200,0.25),0_0_40px_rgba(200,200,200,0.15),inset_0_0_8px_rgba(255,255,255,0.1)]
+  hover:-translate-y-0.5`}
+
                 disabled={sending || savingDraft}
               >
                 <Paperclip className="h-4 w-4" />
@@ -370,12 +389,18 @@ const ComposeModal = ({
           <div className="flex items-center space-x-2">
             <button
               onClick={() => onClose()}
-              className="rounded-md px-4 py-2 text-red-600 hover:bg-red-100 cursor-pointer border-2 border-red-600"
+             className={`rounded-md px-4 py-2 text-red-600 border-2 border-red-200
+  cursor-pointer transition-all duration-300
+  hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-lg
+  hover:shadow-[0_12px_25px_rgba(255,0,0,0.3),0_0_50px_rgba(255,100,100,0.15),inset_0_0_8px_rgba(200,0,0,0.2)]
+  hover:-translate-y-1`}
+
               disabled={sending || savingDraft}
             >
-              Annuler
+              <X className="h-4 w-4  mr-1 inline" />
+              <span>Annuler</span>
             </button>
-            <button
+            {/* <button
               onClick={handleSaveDraft}
               disabled={
                 savingDraft || (!to.trim() && !subject.trim() && !body.trim())
@@ -388,12 +413,17 @@ const ComposeModal = ({
                 <Save className="h-4 w-4" />
               )}
               <span>{savingDraft ? "Sauvegarde..." : "Brouillon"}</span>
-            </button>
+            </button> */}
             <button
               onClick={handleSend}
               disabled={!isFormValid || sending}
-              className="flex cursor-pointer items-center space-x-2 rounded-md bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
+              className={`flex cursor-pointer items-center space-x-2 rounded-md px-6 py-2 text-blue-600 border-2 border-blue-200
+  transition-all duration-300
+  hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-lg
+  hover:shadow-[0_10px_25px_rgba(0,0,255,0.35),0_0_50px_rgba(0,150,255,0.25),inset_0_0_12px_rgba(0,0,255,0.3)]
+  hover:-translate-y-1
+  disabled:cursor-not-allowed disabled:opacity-50`}
+>
               {sending ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />
               ) : (

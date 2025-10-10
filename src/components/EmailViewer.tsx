@@ -207,118 +207,151 @@ const handlePrint = () => {
     <div className="flex flex-1 flex-col bg-white">
       <div className="border-b border-gray-300 p-4">
         <div className="mb-4 flex items-center justify-between">
-          <button
-            onClick={onClose}
-            className="rounded p-2 hover:bg-gray-100 md:hidden"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <div className="flex flex-row space-between justify-between space-x-2  w-[300%]">
-            <div className="flex items-center space-x-2 ">
-            
-              <button
-                className="rounded cursor-pointer p-2 hover:bg-gray-100"
-                onClick={() => onMoveToFolder(email.id, "trash")}
-                title="Archiver l'email"
-              >
-                <Archive className="h-5 w-5" />
-              </button>
-              <button
-                className="rounded cursor-pointer p-2 hover:bg-gray-100"
-                onClick={() => onMoveToFolder(email.id, "trash")}
-                title="Supprimer l'email"
-              >
-                <Trash2 className="h-5 w-5" />
-              </button>
-              <button
-              className="rounded cursor-pointer p-2 hover:bg-gray-100"
-              onClick={async () => {
-                if (onMarkAsUnread) {
-                  await onMarkAsUnread(email.id);
-                  window.location.reload();
-            
-                }
-              }}
-              title="Marquer comme non lu"
-            >
-              <MailCheck className="h-5 w-5" />
-            </button>
-                <button
-                className="rounded p-2 cursor-pointer hover:bg-gray-100"
-                onClick={() => onShowSupport && onShowSupport()}
-                title="Centre d'aide"
-              >
-                <HelpCircle className="h-5 w-5" />
-              </button>
-             {/* Menu contextuel (MoreVertical) */}
-<div className="relative">
+  {/* Bouton Retour */}
   <button
-    className="rounded p-2 cursor-pointer hover:bg-gray-100"
-    onClick={() => setShowMenu((prev) => !prev)}
-    title="Plus d'options"
+    onClick={onClose}
+    className="rounded-full p-2 transition-all duration-300 cursor-pointer
+      hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md
+      hover:shadow-[0_8px_20px_rgba(0,0,0,0.25),inset_0_0_6px_rgba(0,0,0,0.2)]
+      hover:-translate-y-0.5 active:translate-y-0 active:scale-95
+      md:hidden"
   >
-    <MoreVertical className="h-5 w-5" />
+    <ChevronLeft className="h-5 w-5" />
   </button>
 
-  {showMenu && (
-    <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
+  <div className="flex flex-row justify-between space-x-2 w-[300%]">
+    <div className="flex items-center space-x-2">
+      {/* Archiver */}
       <button
-        onClick={() => onMoveToFolder(email.id, "archive")}
-        className="flex w-full justify-center cursor-pointer items-center gap-2 px-4 py-2 hover:bg-gray-100 text-sm text-gray-700"
-      >
-        Archiver
-      </button>
-      <button
+        className="rounded-full p-2 transition-all duration-300 cursor-pointer
+          hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md
+          hover:shadow-[0_8px_20px_rgba(0,0,255,0.2),inset_0_0_6px_rgba(0,0,255,0.1)]
+          hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
         onClick={() => onMoveToFolder(email.id, "trash")}
-        className="flex w-full justify-center cursor-pointer items-center gap-2 px-4 py-2 hover:bg-gray-100 text-sm text-gray-700"
+        title="Archiver l'email"
       >
-         Supprimer
+        <Archive className="h-5 w-5" />
       </button>
+
+      {/* Supprimer */}
       <button
+        className="rounded-full p-2 transition-all duration-300 cursor-pointer
+          hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md
+          hover:shadow-[0_8px_20px_rgba(255,0,0,0.2),inset_0_0_6px_rgba(255,0,0,0.1)]
+          hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+        onClick={() => onMoveToFolder(email.id, "trash")}
+        title="Supprimer l'email"
+      >
+        <Trash2 className="h-5 w-5" />
+      </button>
+
+      {/* Marquer comme non lu */}
+      <button
+        className="rounded-full p-2 transition-all duration-300 cursor-pointer
+          hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md
+          hover:shadow-[0_8px_20px_rgba(0,255,0,0.2),inset_0_0_6px_rgba(0,255,0,0.1)]
+          hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
         onClick={async () => {
           if (onMarkAsUnread) {
             await onMarkAsUnread(email.id);
             window.location.reload();
           }
         }}
-        className="flex w-full justify-center cursor-pointer items-center gap-2 px-4 py-2 hover:bg-gray-100 text-sm text-gray-700"
+        title="Marquer comme non lu"
       >
-         Marquer comme non lu
+        <MailCheck className="h-5 w-5" />
       </button>
+
+      {/* Aide */}
       <button
+        className="rounded-full p-2 transition-all duration-300 cursor-pointer
+          hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md
+          hover:shadow-[0_8px_20px_rgba(0,0,255,0.2),inset_0_0_6px_rgba(0,0,255,0.1)]
+          hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
         onClick={() => onShowSupport && onShowSupport()}
-        className="flex w-full justify-center cursor-pointer items-center gap-2 px-4 py-2 hover:bg-gray-100 text-sm text-gray-700"
+        title="Centre d'aide"
       >
-        Aide et support
+        <HelpCircle className="h-5 w-5" />
+      </button>
+
+      {/* Menu contextuel */}
+      <div className="relative">
+        <button
+          className="rounded-full p-2 transition-all duration-300 cursor-pointer
+            hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md
+            hover:shadow-[0_8px_20px_rgba(0,0,0,0.25),inset_0_0_6px_rgba(0,0,0,0.15)]
+            hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+          onClick={() => setShowMenu((prev) => !prev)}
+          title="Plus d'options"
+        >
+          <MoreVertical className="h-5 w-5" />
+        </button>
+
+        {showMenu && (
+          <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
+            <button
+              onClick={() => onMoveToFolder(email.id, "archive")}
+              className="flex w-full justify-center items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md hover:shadow-[0_6px_15px_rgba(0,0,0,0.2)] rounded-xl transition-all duration-300"
+            >
+              Archiver
+            </button>
+            <button
+              onClick={() => onMoveToFolder(email.id, "trash")}
+              className="flex w-full justify-center items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md hover:shadow-[0_6px_15px_rgba(255,0,0,0.2)] rounded-xl transition-all duration-300"
+            >
+              Supprimer
+            </button>
+            <button
+              onClick={async () => {
+                if (onMarkAsUnread) {
+                  await onMarkAsUnread(email.id);
+                  window.location.reload();
+                }
+              }}
+              className="flex w-full justify-center items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md hover:shadow-[0_6px_15px_rgba(0,255,0,0.2)] rounded-xl transition-all duration-300"
+            >
+              Marquer comme non lu
+            </button>
+            <button
+              onClick={() => onShowSupport && onShowSupport()}
+              className="flex w-full justify-center items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md hover:shadow-[0_6px_15px_rgba(0,0,255,0.2)] rounded-xl transition-all duration-300"
+            >
+              Aide et support
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+
+    <div className="w-[100%] flex flex-row justify-end space-x-2">
+      {/* Imprimer */}
+      <button
+        onClick={handlePrint}
+        title="Imprimer le contenu de l'email"
+        className="rounded-full p-2 transition-all duration-300 cursor-pointer
+          hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md
+          hover:shadow-[0_8px_20px_rgba(0,0,0,0.25),inset_0_0_6px_rgba(0,0,0,0.15)]
+          hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+      >
+        <Printer className="h-10 w-10" />
+      </button>
+
+      {/* Star */}
+      <button
+        className={`rounded-full p-2 transition-all duration-300 cursor-pointer
+          ${email.isStarred ? "text-yellow-500" : "text-gray-400"}
+          hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md
+          hover:shadow-[0_8px_20px_rgba(255,215,0,0.25),inset_0_0_6px_rgba(255,200,0,0.2)]
+          hover:-translate-y-0.5 active:translate-y-0 active:scale-95`}
+      >
+        <Star className={`h-7 w-7 transition-transform duration-300 ${email.isStarred ? "fill-current" : ""}`} />
       </button>
     </div>
-  )}
+  </div>
 </div>
 
-            </div>
-            <div className=" w-[100%] flex flex-row justify-end">
-              <button 
-              onClick={handlePrint}
-  title="Imprimer le contenu de l'email"
-               >
-                <Printer className="h-10 w-10 rounded p-2 cursor-pointer hover:bg-gray-100" />
-              </button>
-               <button
-            
-                className={`rounded p-2  ${
-                  email.isStarred ? "text-yellow-500" : ""
-                }`}
-              >
-                <Star
-                  className={`h-7 w-7 ${email.isStarred ? "fill-current" : ""}`}
-                />
-              </button>
-            </div>
-          </div>
-        </div>
 
         <div>
-          <h1 className="mb-3 text-xl font-semibold">{email.subject}</h1>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-purple-600 font-semibold text-white">
@@ -339,6 +372,7 @@ const handlePrint = () => {
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
+          <h1 className="mb-3 text-3xl font-semibold">{email.subject}</h1>
         <div className="leading-relaxed whitespace-pre-wrap text-gray-900">
           {email.body}
         </div>
@@ -350,27 +384,34 @@ const handlePrint = () => {
     <div className="space-y-2">
       {email.attachments?.map((attachment, index) => (
         <div
-          key={index}
-          className="flex items-center justify-between rounded bg-gray-50 px-3 py-2"
-        >
-          <div className="flex items-center space-x-2">
-            <Paperclip className="h-4 w-4 text-gray-500" />
-            <span className="text-sm">{attachment.name}</span>
-           <span className="text-xs text-gray-500">
-  {attachment.size && attachment.size > 0
-    ? `(${Math.round(attachment.size)} KB)`
-    : `(${Math.round(attachment.size)} KB)`}
-</span>
+  key={index}
+  className="flex items-center justify-between rounded-xl bg-white bg-opacity-10 backdrop-blur-md px-3 py-2 transition-all duration-300
+    hover:-translate-y-0.5
+    hover:shadow-[0_8px_20px_rgba(0,0,0,0.2),inset_0_0_6px_rgba(0,0,0,0.1)]"
+>
+  <div className="flex items-center space-x-2">
+    <Paperclip className="h-4 w-4 text-gray-500" />
+    <span className="text-sm">{attachment.name}</span>
+    <span className="text-xs text-gray-500">
+      {attachment.size && attachment.size > 0
+        ? `(${Math.round(attachment.size)} KB)`
+        : `(${Math.round(attachment.size)} KB)`}
+    </span>
+  </div>
 
-          </div>
-          <a
-            href={attachment.url}
-            download={attachment.name}
-            className="rounded p-1 hover:bg-gray-200"
-          >
-            <Download className="h-4 w-4 text-gray-600" />
-          </a>
-        </div>
+  <a
+    href={attachment.url}
+    download={attachment.name}
+    title="Télécharger la pièce jointe"
+    className="rounded-full p-1 transition-all duration-300 cursor-pointer
+      hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md
+      hover:shadow-[0_6px_15px_rgba(0,0,0,0.15),inset_0_0_4px_rgba(0,0,0,0.1)]
+      hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+  >
+    <Download className="h-4 w-4 text-gray-600" />
+  </a>
+</div>
+
       ))}
     </div>
   </div>
@@ -379,20 +420,30 @@ const handlePrint = () => {
       </div>
 
       <div className="border-t gap-2 border-gray-300 p-[12.9px] flex justify-end items-end">
-  <button 
-    onClick={handleReply}
-    className="flex gap-1 cursor-pointer items-center space-x-2 rounded-3xl bg-white px-4 py-2 font-semibold text-gray-600 border-2 border-gray-600 hover:bg-gray-100"
-  >
-    <CornerUpLeft className="h-4 w-4" />
-    <span>Répondre</span>
-  </button>
-  <button 
-    onClick={handleForward}
-    className="flex gap-1 cursor-pointer items-center space-x-2 rounded-3xl bg-white px-4 py-2 font-semibold text-gray-600 border-2 border-gray-600 hover:bg-gray-100"
-  >
-    <span>Transférer</span>
-    <CornerUpRight className="h-4 w-4" />
-  </button>
+ <button
+  onClick={handleReply}
+  className="flex gap-1 cursor-pointer items-center space-x-2 rounded-3xl bg-white bg-opacity-10 backdrop-blur-md px-4 py-2 font-semibold text-gray-600 border-2 border-gray-600
+    transition-all duration-300
+    hover:bg-white hover:bg-opacity-20 hover:backdrop-blur-lg
+    hover:shadow-[0_8px_20px_rgba(0,0,255,0.3),0_0_15px_rgba(0,150,255,0.2),inset_0_0_6px_rgba(0,0,255,0.1)]
+    hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+>
+  <CornerUpLeft className="h-4 w-4" />
+  <span>Répondre</span>
+</button>
+
+<button
+  onClick={handleForward}
+  className="flex gap-1 cursor-pointer items-center space-x-2 rounded-3xl bg-white bg-opacity-10 backdrop-blur-md px-4 py-2 font-semibold text-gray-600 border-2 border-gray-600
+    transition-all duration-300
+    hover:bg-white hover:bg-opacity-20 hover:backdrop-blur-lg
+    hover:shadow-[0_8px_20px_rgba(0,255,0,0.3),0_0_15px_rgba(100,255,100,0.2),inset_0_0_6px_rgba(0,200,0,0.1)]
+    hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+>
+  <span>Transférer</span>
+  <CornerUpRight className="h-4 w-4" />
+</button>
+
 </div>
 
     </div>

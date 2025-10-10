@@ -119,17 +119,25 @@ const EmailList = ({
               {currentEmails.length !== 1 ? "s" : ""}
             </span>
             <button
-              onClick={() => {
-                console.log("🔄 Manual refresh requested");
-                onRefresh();
-              }}
-              className="rounded p-1 hover:bg-gray-100"
-              title="Actualiser"
-            >
-              <RefreshCw
-                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
-              />
-            </button>
+  onClick={() => {
+    console.log("🔄 Manual refresh requested");
+    onRefresh();
+    window.location.reload();
+  }}
+  title="Actualiser"
+  className={`rounded-full p-2 cursor-pointer transition-all duration-300
+    hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md
+    hover:shadow-[0_8px_20px_rgba(0,0,0,0.25),inset_0_0_8px_rgba(255,255,255,0.15)]
+    hover:-translate-y-0.5
+    active:translate-y-0 active:scale-95`}
+>
+  <RefreshCw
+    className={`h-4 w-4 text-gray-700 hover:text-blue-600 transition-colors duration-300 ${
+      loading ? "animate-spin text-blue-500" : ""
+    }`}
+  />
+</button>
+
           </div>
         </div>
       </div>
@@ -206,19 +214,26 @@ const EmailList = ({
                       {email.isImportant && (
                         <AlertCircle className="h-4 w-4 text-yellow-500" />
                       )}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleStar(email.id);
-                        }}
-                       title={email.isStarred ? "Retirer au suivi " : "Ajouter au suivi"}
-                        className={`rounded p-1 cursor-pointer hover:bg-gray-200 ${email.isStarred ? "text-yellow-500" : "text-gray-400"}`}
-                      >
-                        <Star
-                          className={`h-4 w-4 ${email.isStarred ? "fill-current" : ""}`}
-                          
-                        />
-                      </button>
+                     <button
+  onClick={(e) => {
+    e.stopPropagation();
+    onToggleStar(email.id);
+  }}
+  title={email.isStarred ? "Retirer au suivi" : "Ajouter au suivi"}
+  className={`rounded-full p-2 cursor-pointer transition-all duration-300
+    ${email.isStarred ? "text-yellow-500" : "text-gray-400"}
+    hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md
+    hover:shadow-[0_8px_20px_rgba(255,215,0,0.25),inset_0_0_6px_rgba(255,200,0,0.2)]
+    hover:-translate-y-0.5
+    active:translate-y-0 active:scale-95`}
+>
+  <Star
+    className={`h-4 w-4 transition-transform duration-300 ${
+      email.isStarred ? "fill-current" : ""
+    }`}
+  />
+</button>
+
                     </div>
                   </div>
 

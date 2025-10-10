@@ -167,12 +167,16 @@ const Profiles = () => {
               </div>
               {!isEditing && (
                 <button
-                  onClick={() => setIsEditing(true)}
-                  className="group cursor-pointer rounded-xl bg-white/20 p-3 backdrop-blur-sm transition-all duration-200 hover:bg-white/30"
-                  title="Modifier le profil"
-                >
-                  <Edit2 className="h-5 w-5 transition-transform group-hover:scale-110" />
-                </button>
+  onClick={() => setIsEditing(true)}
+  className="group cursor-pointer rounded-xl bg-white/20 p-3 backdrop-blur-sm transition-all duration-300
+    hover:bg-white/30 hover:backdrop-blur-lg
+    hover:shadow-[0_8px_20px_rgba(0,150,255,0.3),0_0_15px_rgba(0,100,255,0.2),inset_0_0_6px_rgba(0,50,255,0.1)]
+    hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+  title="Modifier le profil"
+>
+  <Edit2 className="h-5 w-5 transition-transform group-hover:scale-110" />
+</button>
+
               )}
             </div>
           </div>
@@ -325,42 +329,66 @@ const Profiles = () => {
             {isEditing && (
               <div className="flex gap-3 border-t border-gray-200 pt-6">
                 <button
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 font-semibold text-white shadow-lg transition-all duration-200 hover:from-blue-700 hover:to-blue-800 hover:shadow-xl focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {loading ? (
-                    <>
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
-                      <span>Enregistrement...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-5 w-5" />
-                      <span>Enregistrer les modifications</span>
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={handleCancel}
-                  disabled={loading}
-                  className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-red-700 px-4 py-3 font-semibold text-red-700 transition-all duration-200 hover:bg-red-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <X className="h-5 w-5" />
-                  <span>Annuler</span>
-                </button>
+  onClick={handleSubmit}
+  disabled={loading}
+  className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg 
+    bg-white px-4 py-3 font-semibold text-blue-600
+    shadow-[0_8px_20px_rgba(0,100,255,0.3),0_0_15px_rgba(0,150,255,0.2),inset_0_0_6px_rgba(0,50,255,0.1)]
+    transition-all duration-300
+    hover:from-blue-700 hover:to-blue-800 hover:shadow-[0_12px_25px_rgba(0,120,255,0.4),0_0_25px_rgba(0,150,255,0.25),inset_0_0_8px_rgba(0,80,255,0.15)]
+    hover:-translate-y-0.5 active:translate-y-0 active:scale-95
+    focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none
+    disabled:cursor-not-allowed disabled:opacity-50"
+>
+  {loading ? (
+    <>
+      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+      <span>Enregistrement...</span>
+    </>
+  ) : (
+    <>
+      <Save className="h-5 w-5" />
+      <span>Enregistrer les modifications</span>
+    </>
+  )}
+</button>
+
+<button
+  onClick={handleCancel}
+  disabled={loading}
+  className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg 
+    border-2 border-red-200 px-4 py-3 font-semibold text-red-700
+    shadow-[0_8px_20px_rgba(255,0,0,0.3),0_0_15px_rgba(255,80,80,0.2),inset_0_0_6px_rgba(200,0,0,0.15)]
+    transition-all duration-300
+    hover:bg-white hover:shadow-[0_12px_25px_rgba(255,0,0,0.4),0_0_25px_rgba(255,80,80,0.25),inset_0_0_8px_rgba(200,0,0,0.2)]
+    hover:-translate-y-0.5 active:translate-y-0 active:scale-95
+    focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:outline-none
+    disabled:cursor-not-allowed disabled:opacity-50"
+>
+  <X className="h-5 w-5" />
+  <span>Annuler</span>
+</button>
+
               </div>
             )}
           </div>
         </div>
         <div className="mt-4 flex items-center justify-center text-center">
           <button
-            onClick={handleBack}
-            className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-gray-400 px-4 py-3 font-semibold text-gray-400 transition-all duration-200 hover:bg-red-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <ArrowBigLeft className="h-5 w-5" />
-            <span>revenir en arrière</span>
-          </button>
+  onClick={handleBack}
+  className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-red-200 px-4 py-3 font-semibold text-red-600
+    shadow-[0_6px_15px_rgba(128,128,128,0.25),0_0_10px_rgba(200,0,0,0.1),inset_0_0_5px_rgba(0,0,0,0.05)]
+    transition-all duration-300
+    hover:bg-white hover:bg-opacity-20 hover:backdrop-blur-md
+    hover:shadow-[0_10px_20px_rgba(255,0,0,0.3),0_0_25px_rgba(255,100,100,0.15),inset_0_0_6px_rgba(200,0,0,0.2)]
+    hover:-translate-y-0.5 active:translate-y-0 active:scale-95
+    focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:outline-none
+    disabled:cursor-not-allowed disabled:opacity-50"
+>
+  <ArrowBigLeft className="h-5 w-5" />
+  <span>Revenir en arrière</span>
+</button>
+
         </div>
         {/* Info Card */}
         <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-4">

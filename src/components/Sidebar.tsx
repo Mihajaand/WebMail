@@ -86,8 +86,14 @@ const navigate = useNavigate();
       <div className="p-4">
         <button
           onClick={onShowCompose}
-          className="flex w-full cursor-pointer items-center justify-center space-x-2 rounded-lg  px-4 py-2 text-gray-900 border-2 border-gray-500 hover:bg-gray-100"
-        >
+         className={`flex w-full cursor-pointer items-center justify-center space-x-2 rounded-lg px-4 py-2 
+  text-gray-900 border-2 border-blue-100
+  transition-all duration-300
+  hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-lg
+  hover:shadow-[0_12px_25px_rgba(0,0,255,0.3),0_0_50px_rgba(0,150,255,0.15),inset_0_0_8px_rgba(0,0,200,0.2)]
+  hover:-translate-y-1`}
+
+>
           <Plus className="h-4 w-4" />
           <span>Nouveau message</span>
         </button>
@@ -98,18 +104,21 @@ const navigate = useNavigate();
           <button
             key={folder.id}
             onClick={() => onFolderChange(folder.id)}
-            className={`mb-1 flex w-full items-center space-x-3 rounded-lg px-3 py-2 hover:bg-gray-100 ${
-              currentFolder === folder.id
-                ? "bg-blue-50 text-blue-700"
-                : "text-gray-700"
-            }`}
+            className={`mb-1 flex text-sm w-full items-center space-x-3 rounded-xl px-3 py-2 transition-all duration-300
+  ${
+    currentFolder === folder.id
+      ? "bg-white bg-opacity-10 backdrop-blur-3xl text-gray-900 font-semibold shadow-[0_20px_40px_rgba(0,0,0,0.5),0_0_100px_rgba(255,255,255,0.2),inset_0_0_20px_rgba(0,0,0,0.25)] border border-white border-opacity-25"
+      : "text-gray-700 hover:bg-white hover:bg-opacity-20 hover:backdrop-blur-3xl hover:shadow-[0_18px_45px_rgba(0,0,0,0.55),0_0_90px_rgba(255,255,255,0.25),inset_0_0_20px_rgba(0,0,0,0.3)] hover:border hover:border-white hover:border-opacity-25 hover:-translate-y-1"
+  }`}
+
+
           >
             <folder.icon className="h-5 w-5" />
             <span className="flex-1 cursor-pointer text-left">
               {folder.name}
             </span>
             {folder.count > 0 && (
-              <span className="mb-1 rounded-full bg-red-500 animate-bounce px-1 text-xs text-white">
+              <span className="mb-1 rounded-full bg-red-500 font-semibold p-1 px-2 text-xs text-white">
                 {folder.count}
               </span>
             )}
@@ -128,16 +137,30 @@ const navigate = useNavigate();
             </div>
             <div className="text-xs text-gray-600">{user.email}</div>
           </div>
-          <button className="rounded p-1 hover:bg-gray-100" onClick={() => navigate('/profiles')} title="Paramètres du compte">
-            <Settings className="h-4 w-4 cursor-pointer" />
-          </button>
           <button
-            onClick={onShowDiagnostic}
-            className="cursor-pointer rounded p-1 hover:bg-gray-100"
-            title="Diagnostic"
-          >
-            <Bug className="h-4 w-4" />
-          </button>
+  onClick={() => navigate('/profiles')}
+  title="Paramètres du compte"
+  className={`rounded-full cursor-pointer p-2 transition-all duration-300
+    hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md
+    hover:shadow-[0_8px_20px_rgba(0,0,0,0.25),inset_0_0_8px_rgba(255,255,255,0.15)]
+    hover:-translate-y-0.5
+    active:translate-y-0 active:scale-95`}
+>
+  <Settings className="h-4 w-4 text-gray-700 hover:text-gray-900 transition-colors duration-300" />
+</button>
+
+         <button
+  onClick={onShowDiagnostic}
+  title="Diagnostic"
+  className={`cursor-pointer rounded-full p-2 transition-all duration-300
+    hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md
+    hover:shadow-[0_8px_20px_rgba(0,0,0,0.25),inset_0_0_8px_rgba(255,255,255,0.15)]
+    hover:-translate-y-0.5
+    active:translate-y-0 active:scale-95`}
+>
+  <Bug className="h-4 w-4 text-gray-700 hover:text-blue-600 transition-colors duration-300" />
+</button>
+
         </div>
         <button
   onClick={() => {
@@ -145,7 +168,12 @@ const navigate = useNavigate();
     localStorage.removeItem("jwt");
     navigate("/login");
   }}
-  className="mt-2 w-full flex items-center justify-center gap-2 cursor-pointer rounded  px-3 py-1 text-red-600 hover:bg-red-200 border-2 border-red-600"
+ className={`mt-2 w-full flex items-center justify-center gap-2 cursor-pointer rounded-md px-3 py-1 
+  text-red-600 border-2 border-red-200
+  transition-all duration-300
+  hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-lg
+  hover:shadow-[0_12px_25px_rgba(255,0,0,0.35),0_0_35px_rgba(255,100,100,0.15),inset_0_0_8px_rgba(200,0,0,0.2)]
+  hover:-translate-y-1`}
 >
   <LogOut className="h-4 w-4" />
   <span>Déconnexion</span>
