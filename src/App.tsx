@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import GmailClone from "./pages/GmailClone";
 import Profiles from "./pages/Profiles";
 import Support from "./pages/Support";
+import { Toaster } from "react-hot-toast"; // ✅ import du toaster
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -14,6 +15,7 @@ export default function App() {
     const stored = localStorage.getItem("user");
     if (stored) setUser(JSON.parse(stored));
   }, []);
+
   return (
     <div>
       <Routes>
@@ -28,6 +30,19 @@ export default function App() {
         <Route path="/support" element={<Support onBack={() => {}} />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+
+      {/* ✅ Toaster global */}
+      <Toaster
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: "#333",
+            color: "#fff",
+            borderRadius: "12px",
+            fontSize: "0.9rem",
+          },
+        }}
+      />
     </div>
   );
 }

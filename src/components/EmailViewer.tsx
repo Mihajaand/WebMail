@@ -16,7 +16,8 @@ import {
 import type { Email } from "../types/email";
 import { useEffect, useState } from "react";
 import eni from "./../assets/logo/eni.jpg";
-
+import toast from "react-hot-toast";
+import Swal from "sweetalert2";
 interface EmailViewerProps {
   email: Email;
   onClose: () => void;
@@ -222,28 +223,71 @@ const handlePrint = () => {
   <div className="flex flex-row justify-between space-x-2 w-[300%]">
     <div className="flex items-center space-x-2">
       {/* Archiver */}
-      <button
-        className="rounded-full p-2 transition-all duration-300 cursor-pointer
-          hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md
-          hover:shadow-[0_8px_20px_rgba(0,0,255,0.2),inset_0_0_6px_rgba(0,0,255,0.1)]
-          hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
-        onClick={() => onMoveToFolder(email.id, "trash")}
-        title="Archiver l'email"
-      >
-        <Archive className="h-5 w-5" />
-      </button>
+       <button
+  className="rounded-full p-2 transition-all duration-300 cursor-pointer
+    hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md
+    hover:shadow-[0_8px_20px_rgba(255,0,0,0.2),inset_0_0_6px_rgba(255,0,0,0.1)]
+    hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+  onClick={async () => {
+     const result = await Swal.fire({
+      title: "Êtes-vous sûr ?",
+      text: "Vous ne pourrez pas annuler cette action !",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Oui, déplacer",
+      cancelButtonText: "Annuler",
+    });
+
+
+    if (result.isConfirmed) {
+      try {
+        await onMoveToFolder(email.id, "trash"); // action
+        toast.success("Email Archivé avec succès !", { duration: 3000 }); // toast
+      } catch (err) {
+        toast.error("Erreur lors de l'archivage.", { duration: 3000 });
+      }
+    }
+  }}
+  title="Archiver l'email"
+>
+  <Archive className="h-5 w-5" />
+</button>
 
       {/* Supprimer */}
       <button
-        className="rounded-full p-2 transition-all duration-300 cursor-pointer
-          hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md
-          hover:shadow-[0_8px_20px_rgba(255,0,0,0.2),inset_0_0_6px_rgba(255,0,0,0.1)]
-          hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
-        onClick={() => onMoveToFolder(email.id, "trash")}
-        title="Supprimer l'email"
-      >
-        <Trash2 className="h-5 w-5" />
-      </button>
+  className="rounded-full p-2 transition-all duration-300 cursor-pointer
+    hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md
+    hover:shadow-[0_8px_20px_rgba(255,0,0,0.2),inset_0_0_6px_rgba(255,0,0,0.1)]
+    hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+  onClick={async () => {
+     const result = await Swal.fire({
+      title: "Êtes-vous sûr ?",
+      text: "Vous ne pourrez pas annuler cette action !",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Oui, déplacer",
+      cancelButtonText: "Annuler",
+    });
+
+
+    if (result.isConfirmed) {
+      try {
+        await onMoveToFolder(email.id, "trash"); // action
+        toast.success("Email déplacé vers la corbeille !", { duration: 3000 }); // toast
+      } catch (err) {
+        toast.error("Erreur lors de la suppression.", { duration: 3000 });
+      }
+    }
+  }}
+  title="Supprimer l'email"
+>
+  <Trash2 className="h-5 w-5" />
+</button>
+
 
       {/* Marquer comme non lu */}
       <button
@@ -254,8 +298,13 @@ const handlePrint = () => {
         onClick={async () => {
           if (onMarkAsUnread) {
             await onMarkAsUnread(email.id);
+            setTimeout(() => {
             window.location.reload();
+              
+            }, 500)
           }
+          toast.success("Email marqué comme non lu !", { duration: 5000 });
+          
         }}
         title="Marquer comme non lu"
       >
@@ -290,24 +339,74 @@ const handlePrint = () => {
         {showMenu && (
           <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
             <button
-              onClick={() => onMoveToFolder(email.id, "archive")}
+              onClick={async () => {
+     const result = await Swal.fire({
+      title: "Êtes-vous sûr ?",
+      text: "Vous ne pourrez pas annuler cette action !",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Oui, déplacer",
+      cancelButtonText: "Annuler",
+    });
+
+
+    if (result.isConfirmed) {
+      try {
+        await onMoveToFolder(email.id, "trash"); // action
+        toast.success("Email Archivé avec succès !", { duration: 3000 }); // toast
+      } catch (err) {
+        toast.error("Erreur lors de l'archivage.", { duration: 3000 });
+      }
+    }
+  }}
+  title="Archiver l'email"
               className="flex w-full justify-center items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md hover:shadow-[0_6px_15px_rgba(0,0,0,0.2)] rounded-xl transition-all duration-300"
             >
               Archiver
             </button>
             <button
-              onClick={() => onMoveToFolder(email.id, "trash")}
+               onClick={async () => {
+     const result = await Swal.fire({
+      title: "Êtes-vous sûr ?",
+      text: "Vous ne pourrez pas annuler cette action !",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Oui, déplacer",
+      cancelButtonText: "Annuler",
+    });
+
+
+    if (result.isConfirmed) {
+      try {
+        await onMoveToFolder(email.id, "trash"); // action
+        toast.success("Email déplacé vers la corbeille !", { duration: 3000 }); // toast
+      } catch (err) {
+        toast.error("Erreur lors de la suppression.", { duration: 3000 });
+      }
+    }
+  }}
+  title="Supprimer l'email"
               className="flex w-full justify-center items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md hover:shadow-[0_6px_15px_rgba(255,0,0,0.2)] rounded-xl transition-all duration-300"
             >
               Supprimer
             </button>
             <button
-              onClick={async () => {
-                if (onMarkAsUnread) {
-                  await onMarkAsUnread(email.id);
-                  window.location.reload();
-                }
-              }}
+             onClick={async () => {
+          if (onMarkAsUnread) {
+            await onMarkAsUnread(email.id);
+            setTimeout(() => {
+            window.location.reload();
+              
+            }, 500)
+          }
+          toast.success("Email marqué comme non lu !", { duration: 5000 });
+          
+        }}
+        title="Marquer comme non lu"
               className="flex w-full justify-center items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-white hover:bg-opacity-10 hover:backdrop-blur-md hover:shadow-[0_6px_15px_rgba(0,255,0,0.2)] rounded-xl transition-all duration-300"
             >
               Marquer comme non lu

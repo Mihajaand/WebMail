@@ -1,4 +1,7 @@
 import { Search, RefreshCw, Mail, AlertCircle, Star } from "lucide-react";
+import toast from "react-hot-toast";
+import Swal from "sweetalert2";
+
 import type { Email } from "../types/email";
 
 interface EmailListProps {
@@ -228,6 +231,8 @@ const EmailList = ({
                         onClick={(e) => {
                           e.stopPropagation();
                           onToggleStar(email.id);
+                          toast.success("Changement de statut du suivi de l'email avec succès !", { duration: 3000 }); // toast
+
                         }}
                         title={email.isStarred ? "Retirer au suivi" : "Ajouter au suivi"}
                         className={`rounded-xl p-2 cursor-pointer transition-all duration-300 backdrop-blur-sm transform-gpu
