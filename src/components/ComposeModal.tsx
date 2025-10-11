@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Send, Paperclip, RefreshCw, Save, XCircle, Download } from "lucide-react";
+import toast from "react-hot-toast";
+import Swal from "sweetalert2";
 
 interface ComposeEmailData {
   to: string[];
@@ -186,7 +188,11 @@ const ComposeModal = ({
             {draftData ? "Modifier le brouillon" : "Nouveau message"}
           </h2>
           <button
-  onClick={handleClose}
+  onClick={
+    async () => {
+      await handleClose();
+      toast.success("Brouillon sauvegardé avec succès !", { duration: 3000 }); // toast
+    }}
   disabled={sending || savingDraft}
   className={`flex cursor-pointer items-center justify-center rounded-full p-2 
     transition-all duration-300
@@ -415,7 +421,13 @@ const ComposeModal = ({
               <span>{savingDraft ? "Sauvegarde..." : "Brouillon"}</span>
             </button> */}
             <button
-              onClick={handleSend}
+              onClick={ async () =>{
+                handleSend();
+                toast.success("Votre email a été envoyé avec succès !", { duration: 3000 }); // toast
+
+              }
+                
+              }
               disabled={!isFormValid || sending}
               className={`flex cursor-pointer items-center space-x-2 rounded-md px-6 py-2 text-blue-600 border-2 border-blue-200
   transition-all duration-300

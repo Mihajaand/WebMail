@@ -10,7 +10,8 @@ import {
   Lock,
   ArrowBigLeft,
 } from "lucide-react";
-
+import toast from "react-hot-toast";
+import Swal from "sweetalert2";
 const Profiles = () => {
   const [user, setUser] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -329,7 +330,29 @@ const Profiles = () => {
             {isEditing && (
               <div className="flex gap-3 border-t border-gray-200 pt-6">
                 <button
-  onClick={handleSubmit}
+  onClick={async () => {
+    // 1️⃣ Confirmation avant l'action
+    const result = await Swal.fire({
+      title: "Confirmer l'enregistrement ?",
+      text: "Voulez-vous vraiment enregistrer ces modifications ?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Oui, enregistrer",
+      cancelButtonText: "Annuler",
+      confirmButtonColor: "#2563EB", // bleu
+      cancelButtonColor: "#6B7280", // gris
+    });
+
+    if (!result.isConfirmed) return; // utilisateur annule
+
+    // 2️⃣ Action + toast
+    try {
+      await handleSubmit(); // ton action asynchrone
+      toast.success("Modifications enregistrées !", { duration: 3000 });
+    } catch (err) {
+      toast.error("Erreur lors de l'enregistrement.", { duration: 3000 });
+    }
+  }}
   disabled={loading}
   className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg 
     bg-white px-4 py-3 font-semibold text-blue-600
