@@ -423,7 +423,7 @@ const ComposeModal = ({
             <button
               onClick={ async () =>{
                 handleSend();
-                toast.success("Votre email a été envoyé avec succès !", { duration: 3000 }); // toast
+                toast.success("Votre email a été envoyé avec succès !", { duration: 6000 }); // toast
 
               }
                 

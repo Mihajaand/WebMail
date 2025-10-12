@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import {
   Plus,
   Inbox,
@@ -12,6 +13,8 @@ import {
 import type { Email } from "../types/email";
 import logoEni from "./../assets/logo/eni.jpg";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import Swal from "sweetalert2";
 
 interface SidebarProps {
   user: {
@@ -26,6 +29,7 @@ interface SidebarProps {
   onFolderChange: (folderId: string) => void;
   onShowCompose: () => void;
   onShowDiagnostic: () => void;
+  onEmptyTrash?: () => Promise<void>;
 }
 
 const Sidebar = ({
@@ -37,7 +41,21 @@ const Sidebar = ({
   onFolderChange,
   onShowCompose,
   onShowDiagnostic,
+  onEmptyTrash,
 }: SidebarProps) => {
+  const [contextMenu, setContextMenu] = useState<{
+    show: boolean;
+    x: number;
+    y: number;
+  }>({
+    show: false,
+    x: 0,
+    y: 0,
+  });
+
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+
   const folders = [
     {
       id: "inbox",
@@ -93,7 +111,165 @@ const Sidebar = ({
 
   const getInitial = (str?: string) =>
     str && str.length > 0 ? str.charAt(0).toUpperCase() : "U";
-  const navigate = useNavigate();
+
+  // GESTION DU CLIC DROIT SUR LA CORBEILLE
+  const handleContextMenu = (e: React.MouseEvent, folder: any) => {
+    if (folder.id === "trash" && folder.count > 0) {
+      e.preventDefault();
+      setContextMenu({
+        show: true,
+        x: e.clientX,
+        y: e.clientY,
+      });
+    }
+  };
+
+  // Fermer le menu contextuel
+  const closeContextMenu = () => {
+    setContextMenu({ show: false, x: 0, y: 0 });
+  };
+
+  // Gérer le clic en dehors du menu
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        contextMenuRef.current &&
+        !contextMenuRef.current.contains(e.target as Node)
+      ) {
+        closeContextMenu();
+      }
+    };
+
+    if (contextMenu.show) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [contextMenu.show]);
+
+  // VIDER LA CORBEILLE avec SweetAlert2
+  const handleEmptyTrash = async () => {
+    const trashCount = getEmailCount("trash");
+    
+    closeContextMenu();
+
+    // Afficher la confirmation avec SweetAlert2
+    const result = await Swal.fire({
+      title: '⚠️ Vider la corbeille ?',
+      html: `
+        <div class="text-left">
+          <p class="mb-3">Cette action est <strong class="text-red-600">IRRÉVERSIBLE</strong> et supprimera définitivement :</p>
+          <div class="bg-red-50 border-l-4 border-red-500 p-3 mb-3">
+            <p class="font-bold text-red-700">${trashCount} email(s)</p>
+          </div>
+          <p class="text-sm text-gray-600">Les emails seront supprimés de la base de données et ne pourront plus être récupérés.</p>
+        </div>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: '🗑️ Oui, vider la corbeille',
+      cancelButtonText: 'Annuler',
+      reverseButtons: true,
+      focusCancel: true,
+      customClass: {
+        popup: 'rounded-xl',
+        confirmButton: 'font-semibold',
+        cancelButton: 'font-semibold'
+      }
+    });
+
+    if (result.isConfirmed) {
+      // Afficher un toast de chargement
+      const loadingToast = toast.loading(
+        `🗑️ Suppression de ${trashCount} email(s) en cours...`,
+        {
+          duration: Infinity,
+          style: {
+            background: '#1f2937',
+            color: '#fff',
+            fontWeight: '600',
+          },
+        }
+      );
+
+      try {
+        if (onEmptyTrash) {
+          await onEmptyTrash();
+        }
+
+        // Masquer le toast de chargement
+        toast.dismiss(loadingToast);
+
+        // Afficher un toast de succès
+        toast.success(
+          `✅ Corbeille vidée ! ${trashCount} email(s) supprimé(s)`,
+          {
+            duration: 5000,
+            style: {
+              background: '#10b981',
+              color: '#fff',
+              fontWeight: '600',
+            },
+            icon: '🎉',
+          }
+        );
+
+        // SweetAlert de confirmation finale
+        await Swal.fire({
+          title: 'Corbeille vidée !',
+          html: `
+            <div class="text-center">
+              <p class="text-lg mb-3">✅ ${trashCount} email(s) supprimé(s) définitivement</p>
+              <p class="text-sm text-gray-600">La corbeille est maintenant vide.</p>
+            </div>
+          `,
+          icon: 'success',
+          confirmButtonColor: '#10b981',
+          confirmButtonText: 'Parfait !',
+          timer: 3000,
+          timerProgressBar: true,
+          customClass: {
+            popup: 'rounded-xl',
+          }
+        });
+
+      } catch (error) {
+        // Masquer le toast de chargement
+        toast.dismiss(loadingToast);
+
+        // Afficher un toast d'erreur
+        toast.error(
+          '❌ Erreur lors de la suppression des emails',
+          {
+            duration: 5000,
+            style: {
+              background: '#dc2626',
+              color: '#fff',
+              fontWeight: '600',
+            },
+          }
+        );
+
+        // SweetAlert d'erreur
+        await Swal.fire({
+          title: 'Erreur',
+          text: 'Une erreur est survenue lors de la suppression des emails.',
+          icon: 'error',
+          confirmButtonColor: '#dc2626',
+          confirmButtonText: 'OK',
+          customClass: {
+            popup: 'rounded-xl',
+          }
+        });
+
+        console.error('Erreur lors du vidage de la corbeille:', error);
+      }
+    }
+  };
   
   return (
     <div
@@ -124,12 +300,18 @@ const Sidebar = ({
           <button
             key={folder.id}
             onClick={() => onFolderChange(folder.id)}
+            onContextMenu={(e) => handleContextMenu(e, folder)}
             className={`mb-1 flex text-sm w-full items-center space-x-3 rounded-xl px-3 py-2 transition-all duration-300
   ${
     currentFolder === folder.id
       ? `${folder.colors.active} font-semibold border border-opacity-40 scale-105`
       : `text-gray-700 ${folder.colors.hover} hover:scale-105 hover:-translate-y-0.5`
   }`}
+            title={
+              folder.id === "trash" && folder.count > 0
+                ? "Clic droit pour vider la corbeille"
+                : folder.name
+            }
           >
             <folder.icon className="h-5 w-5" />
             <span className="flex-1 cursor-pointer text-left">
@@ -143,6 +325,31 @@ const Sidebar = ({
           </button>
         ))}
       </nav>
+
+      {/* MENU CONTEXTUEL POUR VIDER LA CORBEILLE */}
+      {contextMenu.show && (
+        <div
+          ref={contextMenuRef}
+          className="fixed z-50 bg-white rounded-lg shadow-2xl border border-gray-200 py-2 min-w-[220px]"
+          style={{
+            left: `${contextMenu.x}px`,
+            top: `${contextMenu.y}px`,
+          }}
+        >
+          <button
+            onClick={handleEmptyTrash}
+            className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-600 hover:bg-red-50 transition-colors"
+          >
+            <Trash2 className="h-5 w-5" />
+            <div className="flex flex-col">
+              <span className="font-medium">Vider la corbeille</span>
+              <span className="text-xs text-gray-500">
+                {getEmailCount("trash")} email(s) seront supprimés définitivement
+              </span>
+            </div>
+          </button>
+        </div>
+      )}
 
       <div className="border-t border-gray-300 p-4">
         <div className="flex items-center space-x-3">

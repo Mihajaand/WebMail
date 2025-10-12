@@ -4,13 +4,23 @@ import type { StoredUser } from "../types/emailService";
 const API_BASE = import.meta.env.VITE_STRAPI_URL || "http://localhost:1337/api";
 
 export class ApiClient {
+  protected baseUrl = API_BASE;
+
+  protected getHeaders(): HeadersInit {
+    const token = localStorage.getItem("jwt");
+    return {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      "Content-Type": "application/json",
+    };
+  }
+
   protected async fetchApi<T>(
     endpoint: string,
     options?: RequestInit & { params?: Record<string, string | number> },
   ): Promise<T> {
     const token = localStorage.getItem("jwt");
     let fullUrl = `${API_BASE}${endpoint}`;
-    
+
     // Ajouter les paramètres d'URL si présents
     if (options?.params) {
       const queryParams = new URLSearchParams();
@@ -58,10 +68,32 @@ export class ApiClient {
       );
     }
 
-    const jsonResponse = await response.json();
-    console.log("📦 API JSON Response:", jsonResponse);
+    // ✅ CORRECTION CRITIQUE: Gérer les réponses vides (204 No Content)
+    // Si la réponse est vide (comme pour DELETE), ne pas tenter de parser JSON
+    const contentType = response.headers.get("content-type");
+    const contentLength = response.headers.get("content-length");
 
-    return jsonResponse as T;
+    // Si pas de contenu (204) ou content-length = 0, retourner un objet vide
+    if (response.status === 204 || contentLength === "0") {
+      console.log("✅ Réponse vide (204 No Content ou content-length=0)");
+      return {} as T;
+    }
+
+    // Si pas de content-type JSON, ne pas parser
+    if (!contentType || !contentType.includes("application/json")) {
+      console.log("⚠️ Réponse non-JSON, retour objet vide");
+      return {} as T;
+    }
+
+    // Sinon, parser normalement le JSON
+    try {
+      const jsonResponse = await response.json();
+      console.log("📦 API JSON Response:", jsonResponse);
+      return jsonResponse as T;
+    } catch (error) {
+      console.warn("⚠️ Erreur parsing JSON, réponse probablement vide:", error);
+      return {} as T;
+    }
   }
 
   protected getStoredUser(): StoredUser {
@@ -81,7 +113,7 @@ export class ApiClient {
 
       if (Array.isArray(emailResponse.data) && emailResponse.data.length > 0) {
         const email = emailResponse.data[0];
-        return email.id.toString();
+        return email.documentId || email.id.toString();
       }
     } catch (error) {
       console.warn(

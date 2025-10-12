@@ -334,6 +334,100 @@ const GmailClone = ({ user }: GmailCloneProps) => {
     setSelectedEmail(null);
     setShowEmailList(false);
   };
+const handleEmptyTrash = async (): Promise<void> => {
+    try {
+      console.log(`🗑️ Début du vidage de la corbeille...`);
+
+      // Récupérer tous les emails de la corbeille depuis l'API
+      const trashEmailsResponse = await emailService.getEmails("trash", 1);
+      const emailsToDelete = trashEmailsResponse.data || [];
+
+      if (emailsToDelete.length === 0) {
+        console.log("ℹ️ La corbeille est déjà vide");
+        alert("La corbeille est déjà vide.");
+        return;
+      }
+
+      console.log(`📊 ${emailsToDelete.length} emails à supprimer définitivement`);
+      console.log(`📋 IDs à supprimer:`, emailsToDelete.map(e => e.id));
+
+      let deletedCount = 0;
+      let failedCount = 0;
+      const failedEmails: string[] = [];
+
+      // Supprimer chaque email de la corbeille un par un
+      for (const email of emailsToDelete) {
+        try {
+          const emailId = String(email.id);
+          console.log(`\n🗑️ Tentative de suppression DÉFINITIVE de l'email ${emailId}...`);
+          
+          await emailService.deleteEmail(emailId);
+          
+          deletedCount++;
+          console.log(`✅ Email ${emailId} supprimé DÉFINITIVEMENT (${deletedCount}/${emailsToDelete.length})`);
+          
+          // Petit délai pour éviter de surcharger l'API
+          await new Promise(resolve => setTimeout(resolve, 150));
+          
+        } catch (error) {
+          console.error(`❌ Erreur suppression email ${email.id}:`, error);
+          failedCount++;
+          failedEmails.push(`${email.subject} (ID: ${email.id})`);
+        }
+      }
+
+      console.log(`\n✅ Vidage terminé: ${deletedCount} supprimés, ${failedCount} échecs`);
+
+      // Afficher un message détaillé à l'utilisateur
+      if (failedCount === 0) {
+        alert(
+          `✅ Corbeille vidée avec succès !\n\n${deletedCount} email(s) supprimé(s) DÉFINITIVEMENT de la base de données.`
+        );
+      } else {
+        const failedList = failedEmails.join('\n');
+        alert(
+          `⚠️ Vidage terminé avec des erreurs.\n\n✅ Supprimés: ${deletedCount}\n❌ Échecs: ${failedCount}\n\nEmails non supprimés:\n${failedList}`
+        );
+      }
+
+      // Vider immédiatement la liste locale pour feedback instantané
+      setSelectedEmail(null);
+      setShowEmailList(true);
+      
+      console.log("🔄 Attente avant rafraîchissement...");
+      
+      // Attendre un peu plus longtemps pour que Strapi nettoie son cache
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      console.log("🔄 Rafraîchissement de la corbeille...");
+      
+      // Forcer plusieurs rafraîchissements pour contourner le cache
+      await refresh();
+      
+      // Second refresh après un délai supplémentaire
+      setTimeout(async () => {
+        console.log("🔄 Second rafraîchissement...");
+        await refresh();
+        
+        // Vérifier si la corbeille est vraiment vide
+        const verifyResponse = await emailService.getEmails("trash", 1);
+        const remainingEmails = verifyResponse.data?.length || 0;
+        
+        if (remainingEmails > 0) {
+          console.warn(`⚠️ ATTENTION: ${remainingEmails} emails encore présents dans la corbeille après suppression!`);
+          console.warn("Cela peut être dû au cache de Strapi ou à un soft delete.");
+        } else {
+          console.log("✅ Corbeille confirmée vide!");
+        }
+        
+        console.log("✅ Interface rafraîchie");
+      }, 1000);
+
+    } catch (error) {
+      console.error("❌ Erreur globale lors du vidage de la corbeille:", error);
+      alert(`Une erreur est survenue lors de la suppression des emails:\n${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
 
   return (
   <div className="flex h-screen bg-gray-50">
@@ -355,6 +449,7 @@ const GmailClone = ({ user }: GmailCloneProps) => {
           onFolderChange={handleFolderChange}
           onShowCompose={handleNewCompose}
           onShowDiagnostic={() => setShowDiagnostic(true)}
+          onEmptyTrash={handleEmptyTrash}
         />
 
         {/* Email List */}
