@@ -364,7 +364,7 @@ const handleEmptyTrash = async (): Promise<void> => {
           await emailService.deleteEmail(emailId);
           
           deletedCount++;
-          console.log(`✅ Email ${emailId} supprimé DÉFINITIVEMENT (${deletedCount}/${emailsToDelete.length})`);
+          //console.log(`✅ Email ${emailId} supprimé DÉFINITIVEMENT (${deletedCount}/${emailsToDelete.length})`);
           
           // Petit délai pour éviter de surcharger l'API
           await new Promise(resolve => setTimeout(resolve, 150));
@@ -380,12 +380,12 @@ const handleEmptyTrash = async (): Promise<void> => {
 
       // Afficher un message détaillé à l'utilisateur
       if (failedCount === 0) {
-        alert(
+        console.log(
           `✅ Corbeille vidée avec succès !\n\n${deletedCount} email(s) supprimé(s) DÉFINITIVEMENT de la base de données.`
         );
       } else {
         const failedList = failedEmails.join('\n');
-        alert(
+        console.log(
           `⚠️ Vidage terminé avec des erreurs.\n\n✅ Supprimés: ${deletedCount}\n❌ Échecs: ${failedCount}\n\nEmails non supprimés:\n${failedList}`
         );
       }
